@@ -13,6 +13,7 @@ import { ModelerPanel } from './ui/ModelerPanel'
 import { MetalGenerator } from './ui/MetalGenerator'
 import { useDesign } from './state/design'
 import { useAuth } from './state/auth'
+import { useWorkspace } from './state/workspace'
 import { computeMetal } from './lib/metal'
 import { computePrice } from './lib/pricing'
 import { money } from './lib/units'
@@ -62,7 +63,8 @@ function Masthead({ mode, setMode, onLab }: { mode: Mode; setMode: (m: Mode) => 
 
 export default function App() {
   const [labOpen, setLabOpen] = useState(false)
-  const [mode, setMode] = useState<Mode>('design')
+  const mode = useWorkspace(s => s.mode)
+  const setMode = useWorkspace(s => s.setMode)
   const load = useDesign(s => s.load)
 
   // A shared ?d= link opens the exact design.

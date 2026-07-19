@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useDesign } from '../state/design'
+import { useModeler } from '../state/modeler'
+import { useWorkspace } from '../state/workspace'
 import { ALLOYS, SHAPES, STONES, SETTINGS, TEMPLATES, FINISHES, shapeById, stoneMm, alloyById, birthstoneMonth, stoneById, finishById, settingById, isGradeable, gradeMultiplier, gradeLabel, CUT_GRADES, COLOR_GRADES, CLARITY_GRADES, FLUOR_GRADES, CERT_LABS, type Alloy, type Grade } from '../catalog'
 import { sizeToDiameter, sizeToCircumference, formatSize, fitAdvice, sizeConversions } from '../lib/sizing'
 import { guardrails, computePrice } from '../lib/pricing'
@@ -113,8 +115,25 @@ function RingControls() {
           ))}
         </div>
       </Group>
+      <Group title="Custom sculpting">
+        <button className="opt tpl" style={{ width: '100%' }} onClick={sendRingToSculpt}>
+          Send band → Sculpt<small>Open this shank in the 3D modeler to free-draw or push vertices</small>
+        </button>
+      </Group>
     </>
   )
+}
+
+/** Push the current ring band into the Sculpt workspace as an editable shank. */
+function sendRingToSculpt() {
+  const spec = useDesign.getState().spec
+  useModeler.getState().addPart('shank', {
+    ringSize: spec.ring.size,
+    width: spec.ring.width,
+    thickness: spec.ring.thickness,
+    profile: spec.ring.fit === 'comfort' ? 'comfort' : spec.ring.profile
+  }, 'Ring band')
+  useWorkspace.getState().setMode('model')
 }
 
 function PendantControls() {

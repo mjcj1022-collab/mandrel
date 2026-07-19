@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useModeler, SCULPT_COLORS, type PrimitiveKind, type JewelryKind, type SculptMaterial, type SculptObject, type ShankProfile } from '../state/modeler'
 import { booleanOp, modelerToStl, sculptMetalVolume, sculptGemCarats, boundingSize, type BooleanOp } from '../lib/sculpt'
+import { sculptLibrary, type SavedSculpt } from '../lib/sculptLibrary'
 import { ALLOYS, SHAPES, alloyById, shapeById, stoneMm } from '../catalog'
 import { money } from '../lib/units'
 import { SketchPad } from './SketchPad'
@@ -13,7 +14,6 @@ const PRIMS: [PrimitiveKind, string][] = [['box', 'Box'], ['sphere', 'Sphere'], 
 const PARTS: [JewelryKind, string][] = [['shank', 'Shank'], ['gem', 'Gem'], ['head', 'Prong head'], ['bezel', 'Bezel']]
 const PROFILES: [ShankProfile, string][] = [['round', 'Round'], ['flat', 'Flat'], ['dshape', 'D-shape'], ['knife', 'Knife'], ['comfort', 'Comfort']]
 const OPS: [BooleanOp, string][] = [['union', 'Union'], ['subtract', 'Subtract'], ['intersect', 'Intersect']]
-const KEY = 'mandrel.sculpt.v1'
 
 function Slider({ label, value, min, max, step, unit, on }: { label: string; value: number; min: number; max: number; step: number; unit: string; on: (v: number) => void }) {
   return (
@@ -65,7 +65,7 @@ function ParamControls({ sel }: { sel: SculptObject }) {
 }
 
 export function ModelerPanel() {
-  const { objects, selectedId, mode, editMode, falloff, alloyId, snap, add, addMesh, update, remove, duplicate, arrayCircular, arrayLinear, mirror, centerObject, toggleSnap, bakeToMesh, setEditMode, setFalloff, select, setMode, setAlloy, clear, load } = useModeler()
+  const { objects, selectedId, mode, editMode, falloff, alloyId, snap, past, future, undo, redo, add, addMesh, update, remove, duplicate, arrayCircular, arrayLinear, mirror, centerObject, toggleSnap, bakeToMesh, setEditMode, setFalloff, select, setMode, setAlloy, clear, load } = useModeler()
   const sel = objects.find(o => o.id === selectedId) ?? null
   const dims = sel ? boundingSize(sel) : [0, 0, 0]
   const others = objects.filter(o => o.id !== selectedId)
@@ -73,8 +73,23 @@ export function ModelerPanel() {
   const [seatTarget, setSeatTarget] = useState('')
   const [count, setCount] = useState(8)
   const [sketchOpen, setSketchOpen] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [saved, setSaved] = useState<SavedSculpt[]>(() => sculptLibrary.list())
   const [msg, setMsg] = useState('')
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 2500) }
+
+  // Undo / redo keyboard shortcuts (ignored while typing in a field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const t = e.target as HTMLElement
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return
+      if (e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo() }
+      else if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo])
 
   const metalObjects = objects.filter(o => o.material === 'metal' && o.id !== selectedId)
 
@@ -115,8 +130,13 @@ export function ModelerPanel() {
     const blob = new Blob([modelerToStl(objects)], { type: 'model/stl' })
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `blue-flame-sculpt-${Date.now()}.stl`; a.click(); URL.revokeObjectURL(a.href)
   }
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(objects)); flash('Saved.') } catch { flash('Save failed.') } }
-  const restore = () => { try { const raw = localStorage.getItem(KEY); if (raw) { load(JSON.parse(raw)); flash('Loaded.') } else flash('No saved sculpt.') } catch { flash('Load failed.') } }
+  const save = () => {
+    if (!objects.length) { flash('Nothing to save.'); return }
+    const name = saveName.trim() || `Sculpt ${new Date().toLocaleDateString()}`
+    sculptLibrary.save(name, objects); setSaveName(''); setSaved(sculptLibrary.list()); flash('Saved.')
+  }
+  const openSaved = (id: string) => { const rec = sculptLibrary.get(id); if (rec) { load(rec.objects); flash(`Loaded “${rec.name}”.`) } }
+  const removeSaved = (id: string) => { sculptLibrary.remove(id); setSaved(sculptLibrary.list()) }
 
   return (
     <>
@@ -267,9 +287,33 @@ export function ModelerPanel() {
         </div>
       )}
 
+      <div className="panel-block">
+        <h4>History</h4>
+        <div className="opts c2">
+          <button className="opt" disabled={!past.length} onClick={undo} title="Ctrl/⌘+Z">↶ Undo</button>
+          <button className="opt" disabled={!future.length} onClick={redo} title="Ctrl/⌘+Shift+Z">↷ Redo</button>
+        </div>
+
+        <h4 style={{ marginTop: 18 }}>Saved sculpts</h4>
+        <div className="lib-save">
+          <input className="lib-name" placeholder="Name this sculpt" value={saveName}
+            onChange={e => setSaveName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save() }} />
+          <button className="primary" onClick={save}>Save</button>
+        </div>
+        {saved.length === 0 && <p className="disc">Nothing saved yet. Saved sculpts live in this browser.</p>}
+        {saved.map(s => (
+          <div key={s.id} className="lib-row obj-row">
+            <div className="lib-meta"><b>{s.name}</b><small>{s.objects.length} part{s.objects.length === 1 ? '' : 's'} · {new Date(s.at).toLocaleDateString()}</small></div>
+            <div className="lib-acts">
+              <button className="mini" onClick={() => openSaved(s.id)}>Load</button>
+              <button className="mini danger" onClick={() => removeSaved(s.id)}>×</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="panel-block quote">
-        <div className="qact"><button className="primary" onClick={exportStl}>Export STL</button><button className="ghost" onClick={save}>Save</button><button className="ghost" onClick={restore}>Load</button></div>
-        <div className="qact" style={{ marginTop: 8 }}><button className="ghost" onClick={clear}>Clear all</button></div>
+        <div className="qact"><button className="primary" onClick={exportStl}>Export STL</button><button className="ghost" onClick={clear}>Clear all</button></div>
         {msg && <p className="disc">{msg}</p>}
       </div>
 

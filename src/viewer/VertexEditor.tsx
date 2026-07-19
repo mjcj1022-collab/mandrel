@@ -16,16 +16,17 @@ export function VertexEditor({ o }: { o: SculptObject }) {
   const update = useModeler(s => s.update)
 
   // Live, mutable geometry — edits write straight into this buffer for instant
-  // feedback; we only push to the store on release. Rebuilt when the object id
-  // changes (i.e. a different mesh is selected), not on every committed edit.
+  // feedback; we only push to the store on release. Rebuilt when the stored
+  // vertices change identity (selection change, a committed edit, or undo/redo)
+  // — never mid-drag, since dragging mutates the buffer in place without a
+  // store write, so the shape stays stable while you pull it.
   const geom = useMemo(() => {
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.Float32BufferAttribute(Float32Array.from(o.vertices ?? []), 3))
     g.computeVertexNormals()
     g.computeBoundingSphere()
     return g
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [o.id])
+  }, [o.vertices])
 
   const material = useMemo(
     () => new THREE.MeshStandardMaterial({ color: o.color, metalness: 1, roughness: 0.25, envMapIntensity: 1.3 }),

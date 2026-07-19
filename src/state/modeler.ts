@@ -80,6 +80,10 @@ interface ModelerStore {
   falloff: number
   alloyId: string
   snap: boolean
+  past: SculptObject[][]
+  future: SculptObject[][]
+  undo: () => void
+  redo: () => void
   setEditMode: (m: EditMode) => void
   setFalloff: (r: number) => void
   bakeToMesh: (id: string) => void
@@ -87,6 +91,7 @@ interface ModelerStore {
   mirror: (id: string) => void
   centerObject: (id: string) => void
   add: (kind: SculptKind) => void
+  addPart: (kind: SculptKind, params: Partial<SculptParams>, name?: string) => void
   addMesh: (obj: Omit<SculptObject, 'id' | 'name'> & { name?: string }) => string
   update: (id: string, patch: Partial<SculptObject>) => void
   updateParams: (id: string, patch: Partial<SculptParams>) => void
@@ -101,7 +106,14 @@ interface ModelerStore {
   load: (objects: SculptObject[]) => void
 }
 
-export const useModeler = create<ModelerStore>((set, get) => ({
+const HISTORY_LIMIT = 60
+
+export const useModeler = create<ModelerStore>((set, get) => {
+  /** Snapshot the current objects onto the undo stack before a mutation. */
+  const record = () => set(s => ({ past: [...s.past, s.objects].slice(-HISTORY_LIMIT), future: [] }))
+  const stillThere = (id: string | null, objs: SculptObject[]) => (id && objs.some(o => o.id === id) ? id : null)
+
+  return {
   objects: [],
   selectedId: null,
   mode: 'translate',
@@ -109,51 +121,77 @@ export const useModeler = create<ModelerStore>((set, get) => ({
   falloff: 2.5,
   alloyId: '14ky',
   snap: false,
+  past: [],
+  future: [],
+
+  undo: () => set(s => {
+    if (!s.past.length) return {}
+    const prev = s.past[s.past.length - 1]
+    return { objects: prev, past: s.past.slice(0, -1), future: [s.objects, ...s.future].slice(0, HISTORY_LIMIT), selectedId: stillThere(s.selectedId, prev) }
+  }),
+  redo: () => set(s => {
+    if (!s.future.length) return {}
+    const next = s.future[0]
+    return { objects: next, future: s.future.slice(1), past: [...s.past, s.objects].slice(-HISTORY_LIMIT), selectedId: stillThere(s.selectedId, next) }
+  }),
 
   setEditMode: editMode => set({ editMode }),
   setFalloff: falloff => set({ falloff: Math.max(0.2, falloff) }),
 
   /** Flatten any part/primitive into an editable triangle mesh at identity
    *  transform, so its vertices can be pushed and pulled directly. */
-  bakeToMesh: id => set(s => ({
+  bakeToMesh: id => { record(); set(s => ({
     objects: s.objects.map(o => o.id === id
       ? { ...o, kind: 'mesh', vertices: bakedVertices(o), position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], size: 0 }
       : o)
-  })),
+  })) },
 
   toggleSnap: () => set(s => ({ snap: !s.snap })),
 
   mirror: id => {
     const src = get().objects.find(o => o.id === id)
     if (!src) return
+    record()
     const copy: SculptObject = { ...src, id: newId(), name: `${src.name} mirror`, position: [-src.position[0], src.position[1], src.position[2]], scale: [-src.scale[0], src.scale[1], src.scale[2]] }
     set(s => ({ objects: [...s.objects, copy], selectedId: copy.id }))
   },
 
-  centerObject: id => set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, position: [0, o.position[1], 0] } : o) })),
+  centerObject: id => { record(); set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, position: [0, o.position[1], 0] } : o) })) },
 
   add: kind => {
+    record()
     const n = get().objects.filter(o => o.kind === kind).length + 1
     const d = defaults(kind)
     const obj: SculptObject = { id: newId(), kind, name: `${LABEL[kind]} ${n}`, rotation: [0, 0, 0], scale: [1, 1, 1], ...d }
     set(s => ({ objects: [...s.objects, obj], selectedId: obj.id }))
   },
 
+  /** Add a jewelry part pre-configured with params, in a single history step. */
+  addPart: (kind, params, name) => {
+    record()
+    const n = get().objects.filter(o => o.kind === kind).length + 1
+    const d = defaults(kind)
+    const obj: SculptObject = { id: newId(), kind, name: name ?? `${LABEL[kind as SculptKind]} ${n}`, rotation: [0, 0, 0], scale: [1, 1, 1], ...d, params: { ...d.params, ...params } }
+    set(s => ({ objects: [...s.objects, obj], selectedId: obj.id }))
+  },
+
   addMesh: obj => {
+    record()
     const id = newId()
     const full: SculptObject = { id, name: obj.name ?? 'Result', ...obj }
     set(s => ({ objects: [...s.objects, full], selectedId: id }))
     return id
   },
 
-  update: (id, patch) => set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, ...patch } : o) })),
-  updateParams: (id, patch) => set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, params: { ...o.params, ...patch } } : o) })),
+  update: (id, patch) => { record(); set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, ...patch } : o) })) },
+  updateParams: (id, patch) => { record(); set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, params: { ...o.params, ...patch } } : o) })) },
 
-  remove: id => set(s => ({ objects: s.objects.filter(o => o.id !== id), selectedId: s.selectedId === id ? null : s.selectedId })),
+  remove: id => { record(); set(s => ({ objects: s.objects.filter(o => o.id !== id), selectedId: s.selectedId === id ? null : s.selectedId })) },
 
   duplicate: id => {
     const src = get().objects.find(o => o.id === id)
     if (!src) return
+    record()
     const copy: SculptObject = { ...src, id: newId(), name: `${src.name} copy`, position: [src.position[0] + 2, src.position[1], src.position[2] + 2] }
     set(s => ({ objects: [...s.objects, copy], selectedId: copy.id }))
   },
@@ -162,6 +200,7 @@ export const useModeler = create<ModelerStore>((set, get) => ({
   arrayCircular: (id, count) => {
     const src = get().objects.find(o => o.id === id)
     if (!src || count < 2) return
+    record()
     const [x, y, z] = src.position
     let r = Math.hypot(x, z)
     if (r < 0.5) r = 8   // sitting at the centre — array on a default ring radius
@@ -178,6 +217,7 @@ export const useModeler = create<ModelerStore>((set, get) => ({
   arrayLinear: (id, count, spacing) => {
     const src = get().objects.find(o => o.id === id)
     if (!src || count < 2) return
+    record()
     const copies: SculptObject[] = []
     for (let i = 1; i < count; i++) {
       copies.push({ ...src, id: newId(), name: `${src.name} ${i + 1}`, position: [src.position[0] + i * spacing, src.position[1], src.position[2]] })
@@ -188,6 +228,7 @@ export const useModeler = create<ModelerStore>((set, get) => ({
   select: id => set({ selectedId: id }),
   setMode: mode => set({ mode }),
   setAlloy: id => set({ alloyId: id }),
-  clear: () => set({ objects: [], selectedId: null }),
-  load: objects => set({ objects, selectedId: null })
-}))
+  clear: () => { record(); set({ objects: [], selectedId: null }) },
+  load: objects => { record(); set({ objects, selectedId: null }) }
+  }
+})
