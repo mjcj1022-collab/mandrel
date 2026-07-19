@@ -1,10 +1,12 @@
 import { useDesign } from '../state/design'
 import { computeMetal, compareAlloys } from '../lib/metal'
 import { formatWeight, money } from '../lib/units'
+import { METAL_FORMS, metalFormById } from '../catalog'
 
 export function MetalPanel() {
-  const { spec, unit, toggleUnit, compareOpen, toggleCompare, setAlloy } = useDesign()
+  const { spec, unit, toggleUnit, compareOpen, toggleCompare, setAlloy, setMetalForm } = useDesign()
   const m = computeMetal(spec)
+  const form = metalFormById(spec.metal.form)
   const all = compareAlloys(spec)
   const cheapest = Math.min(...all.map(a => a.netMetalCost))
   const w = (g: number) => formatWeight(g, unit)
@@ -16,6 +18,13 @@ export function MetalPanel() {
           Metal requirement
           <button className="unit" onClick={toggleUnit} title="Switch between grams and pennyweight">{unit}</button>
         </h4>
+
+        <div className="subhead" style={{ marginTop: 0 }}>Stock form <span style={{ textTransform: 'none', letterSpacing: 0 }}>· how the metal is smelted</span></div>
+        <div className="opts c2" style={{ marginBottom: 14 }}>
+          {METAL_FORMS.map(f => (
+            <button key={f.id} className="opt" aria-pressed={form.id === f.id} onClick={() => setMetalForm(f.id)}>{f.label}</button>
+          ))}
+        </div>
 
         <div className="qline"><span>Model volume</span><span>{Math.round(m.volume).toLocaleString()} mm³</span></div>
         <div className="qline"><span>Cast weight <i>out of the flask</i></span><span>{w(m.cast)}</span></div>
@@ -29,8 +38,8 @@ export function MetalPanel() {
         <div className="qline sub"><span>Scrap recovery credit</span><span>−{money(m.scrapCredit)}</span></div>
 
         <p className="disc">
-          Order <b>{m.pourRatio.toFixed(2)}×</b> the cast weight. Sprue and button come back as clean scrap.
-          Spot assumed ${m.alloy.spot.toLocaleString()}/ozt {m.alloy.symbol} at a {(m.alloy.premium * 100).toFixed(0)}% grain premium.
+          Order <b>{m.pourRatio.toFixed(2)}×</b> the cast weight. {form.note} Sprue and button come back as clean scrap.
+          Spot assumed ${m.alloy.spot.toLocaleString()}/ozt {m.alloy.symbol}.
         </p>
       </div>
 

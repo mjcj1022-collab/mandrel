@@ -152,6 +152,17 @@ describe('non-ring weight relationships hold', () => {
   })
 })
 
+describe('metal stock form', () => {
+  const pour = (form: string) => computeMetal(cat('ring', { metal: { alloyId: '14ky', form } })).pour
+  const cost = (form: string) => computeMetal(cat('ring', { metal: { alloyId: '14ky', form } })).purchaseCost
+  it('recycled scrap pours heavier than casting grain (more melt loss)', () => {
+    expect(pour('scrap')).toBeGreaterThan(pour('grain'))
+  })
+  it('sheet costs more than grain (higher fabrication premium)', () => {
+    expect(cost('sheet')).toBeGreaterThan(cost('grain'))
+  })
+})
+
 describe('band profile', () => {
   const at = (profile: DesignSpec['ring']['profile']) =>
     computeMetal(cat('ring', { ring: { ...DEFAULT_SPEC.ring, profile, size: 7, width: 2, thickness: 1.6 } })).cast

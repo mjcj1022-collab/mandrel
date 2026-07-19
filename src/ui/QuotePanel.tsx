@@ -79,7 +79,7 @@ function techSheet(spec: DesignSpec) {
   const { count } = stoneUnits(spec)
 
   return [
-    `MANDREL — TECH SHEET  (${CATEGORY_LABEL[spec.category]})`,
+    `BFG REQUEST — TECH SHEET  (${CATEGORY_LABEL[spec.category]})`,
     '',
     ...geometryLines(spec),
     '',
@@ -132,7 +132,7 @@ export function QuotePanel() {
     const blob = new Blob([techSheet(spec)], { type: 'text/plain' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `mandrel-${spec.category}-${Date.now()}.txt`
+    a.download = `bfg-request-${spec.category}-${Date.now()}.txt`
     a.click()
     URL.revokeObjectURL(a.href)
   }

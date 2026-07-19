@@ -83,7 +83,7 @@ export interface NecklaceGeo {
 export interface DesignSpec {
   version: 1
   category: ProductCategory
-  metal: { alloyId: string; rhodium?: boolean; twoTone?: boolean; headAlloyId?: string }
+  metal: { alloyId: string; rhodium?: boolean; twoTone?: boolean; headAlloyId?: string; form?: string }
   center: Center
   setting: { typeId: string; melee?: MeleeSpec }
   finish: FinishId

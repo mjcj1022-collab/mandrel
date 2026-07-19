@@ -1,6 +1,6 @@
 import type { DesignSpec } from '../spec/types'
 import { usesSetting } from '../spec/types'
-import { ALLOYS, CUSTOM_ALLOYS, alloyById, settingById, type Alloy } from '../catalog'
+import { ALLOYS, CUSTOM_ALLOYS, alloyById, settingById, metalFormById, type Alloy } from '../catalog'
 import { computeVolume } from './volume'
 import { OZT } from './units'
 
@@ -78,6 +78,11 @@ export function computeMetal(spec: DesignSpec, alloyId?: string): MetalResult {
 }
 
 function metalFromVolume(volume: number, alloy: Alloy, spec: DesignSpec): MetalResult {
+  // The stock form adjusts fabrication premium and per-melt loss.
+  const form = metalFormById(spec.metal.form)
+  const meltLoss = Math.max(0, alloy.meltLoss + form.meltLossAdd)
+  const premium = Math.max(0, alloy.premium + form.premiumAdd)
+
   const cast = (volume / 1000) * alloy.density
   const loss = finishingLoss(spec, alloy)
   const finished = cast * (1 - loss)
@@ -87,7 +92,7 @@ function metalFromVolume(volume: number, alloy: Alloy, spec: DesignSpec): MetalR
     Math.PI * POUR_DEFAULTS.sprueRadius ** 2 * POUR_DEFAULTS.sprueLength * POUR_DEFAULTS.sprueCount
   const sprue = (sprueVol / 1000) * alloy.density
   const button = Math.max(alloy.buttonMin, (cast + sprue) * POUR_DEFAULTS.buttonRatio)
-  const pour = (cast + sprue + button) * (1 + alloy.meltLoss)
+  const pour = (cast + sprue + button) * (1 + meltLoss)
 
   const fineGrams = finished * alloy.fine
   const fineOzt = fineGrams / OZT
@@ -96,7 +101,7 @@ function metalFromVolume(volume: number, alloy: Alloy, spec: DesignSpec): MetalR
   let scrapCredit: number
   if (alloy.precious) {
     // Priced on fine troy ounces of the precious content; scrap comes back.
-    purchaseCost = ((pour * alloy.fine) / OZT) * alloy.spot * (1 + alloy.premium)
+    purchaseCost = ((pour * alloy.fine) / OZT) * alloy.spot * (1 + premium)
     const scrapClean =
       (((sprue + button) * RECOVERY.cleanFraction * alloy.fine) / OZT) * alloy.spot * RECOVERY.cleanPayout
     const scrapSweep =
@@ -104,7 +109,7 @@ function metalFromVolume(volume: number, alloy: Alloy, spec: DesignSpec): MetalR
     scrapCredit = scrapClean + scrapSweep
   } else {
     // Base / contemporary metals: priced per gram of stock, scrap value negligible.
-    purchaseCost = pour * alloy.perGram * (1 + alloy.premium)
+    purchaseCost = pour * alloy.perGram * (1 + premium)
     scrapCredit = 0
   }
 

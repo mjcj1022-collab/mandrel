@@ -111,7 +111,7 @@ export function ModelerPanel() {
   const exportStl = () => {
     if (!objects.length) { flash('Nothing to export.'); return }
     const blob = new Blob([modelerToStl(objects)], { type: 'model/stl' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `mandrel-sculpt-${Date.now()}.stl`; a.click(); URL.revokeObjectURL(a.href)
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `bfg-request-sculpt-${Date.now()}.stl`; a.click(); URL.revokeObjectURL(a.href)
   }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(objects)); flash('Saved.') } catch { flash('Save failed.') } }
   const restore = () => { try { const raw = localStorage.getItem(KEY); if (raw) { load(JSON.parse(raw)); flash('Loaded.') } else flash('No saved sculpt.') } catch { flash('Load failed.') } }
