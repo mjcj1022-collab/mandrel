@@ -7,6 +7,7 @@ import { alloyById, shapeById, stoneMm } from '../catalog'
 import { sizeToDiameter, formatSize } from '../lib/sizing'
 import { CATEGORY_LABEL, stoneOnPiece } from '../spec/types'
 import { Piece, viewTarget } from './Piece'
+import { pieceHandle } from './exportStl'
 
 function Turntable({ on, children }: { on: boolean; children: React.ReactNode }) {
   const ref = useRef<THREE.Group>(null)
@@ -66,7 +67,9 @@ export function Scene() {
         <directionalLight position={[6, 12, 9]} intensity={1.6} />
         <directionalLight position={[-8, 3, -7]} intensity={0.7} color="#BFD4FF" />
         <Turntable on={spin && !reduced}>
-          <Piece spec={spec} />
+          <group ref={g => { pieceHandle.current = g }}>
+            <Piece spec={spec} />
+          </group>
         </Turntable>
         <OrbitControls
           makeDefault

@@ -2,6 +2,7 @@ import { Scene } from './viewer/Scene'
 import { Controls } from './ui/Controls'
 import { MetalPanel } from './ui/MetalPanel'
 import { QuotePanel } from './ui/QuotePanel'
+import { ProductionPanel } from './ui/ProductionPanel'
 import { LibraryPanel } from './ui/LibraryPanel'
 import { useDesign } from './state/design'
 import { computeMetal } from './lib/metal'
@@ -38,6 +39,7 @@ export default function App() {
           <div className="panel-scroll">
             <Controls />
             <MetalPanel />
+            <ProductionPanel />
             <LibraryPanel />
           </div>
           <QuotePanel />
