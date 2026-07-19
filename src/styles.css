@@ -120,6 +120,13 @@ table.cmp td.best{color:var(--patina);font-weight:700}
 .qact .ghost{background:none;color:var(--karat-lt)}
 .qact .ghost:hover{background:rgba(156,122,60,.15)}
 
+/* filters & subheads */
+.filter-row{display:flex;align-items:center;gap:8px;font-family:var(--ui);font-size:11px;color:#B7BEC1;margin-bottom:12px;cursor:pointer;user-select:none}
+.filter-row input{accent-color:var(--karat);width:14px;height:14px}
+.filter-row small{color:#6E787B;font-family:var(--mono);font-size:9px;margin-left:auto}
+.subhead{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:#6E787B;margin:12px 0 6px}
+.metal-sub:first-of-type .subhead{margin-top:0}
+
 /* metal lab */
 .mast-lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:6px 12px;background:var(--karat);color:#141414;border:1px solid var(--karat);cursor:pointer}
 .mast-lab:hover{background:var(--karat-lt)}

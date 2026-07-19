@@ -16,6 +16,7 @@ interface DesignStore {
   setBracelet: (patch: Partial<DesignSpec['bracelet']>) => void
   setNecklace: (patch: Partial<DesignSpec['necklace']>) => void
   setAlloy: (id: string) => void
+  setRhodium: (on: boolean) => void
   applyCustomAlloy: (alloy: Alloy) => void
   setShape: (id: string) => void
   setStone: (id: string) => void
@@ -38,7 +39,8 @@ export const useDesign = create<DesignStore>(set => ({
   setEarring: patch => set(s => ({ spec: { ...s.spec, earring: { ...s.spec.earring, ...patch } } })),
   setBracelet: patch => set(s => ({ spec: { ...s.spec, bracelet: { ...s.spec.bracelet, ...patch } } })),
   setNecklace: patch => set(s => ({ spec: { ...s.spec, necklace: { ...s.spec.necklace, ...patch } } })),
-  setAlloy: id => set(s => ({ spec: { ...s.spec, metal: { alloyId: id } } })),
+  setAlloy: id => set(s => ({ spec: { ...s.spec, metal: { alloyId: id, rhodium: s.spec.metal.rhodium } } })),
+  setRhodium: (on: boolean) => set(s => ({ spec: { ...s.spec, metal: { ...s.spec.metal, rhodium: on } } })),
   applyCustomAlloy: alloy => { registerAlloy(alloy); set(s => ({ spec: { ...s.spec, metal: { alloyId: alloy.id } } })) },
   setShape: id => set(s => ({ spec: { ...s.spec, center: { ...s.spec.center, shapeId: id } } })),
   setStone: id => set(s => ({ spec: { ...s.spec, center: { ...s.spec.center, stoneTypeId: id } } })),

@@ -3,6 +3,7 @@ import { DEFAULT_SPEC, NO_STONE, type DesignSpec, type ProductCategory } from '.
 import { computeBom } from '../lib/bom'
 import { manufacturabilityChecks, checkSummary } from '../lib/manufacture'
 import { computePrice } from '../lib/pricing'
+import { computeMetal } from '../lib/metal'
 
 const cat = (category: ProductCategory, over: Partial<DesignSpec> = {}): DesignSpec =>
   ({ ...DEFAULT_SPEC, category, ...over })
@@ -30,6 +31,31 @@ describe('bill of materials', () => {
     const backs = bom.lines.find(l => l.item === 'Backs')
     expect(posts?.qty).toBe('2')
     expect(backs?.qty).toBe('2')
+  })
+})
+
+describe('settings, accents and metals depth', () => {
+  it('a halo adds 16 accent stones and costs more than a plain solitaire', () => {
+    const solit = computePrice(cat('ring', { setting: { typeId: 'p4' } }))
+    const halo = computePrice(cat('ring', { setting: { typeId: 'hal' } }))
+    expect(halo.accentCount).toBe(16)
+    expect(halo.accentCost).toBeGreaterThan(0)
+    expect(halo.total).toBeGreaterThan(solit.total)
+  })
+  it('rhodium plating adds a fee only on platable white metals', () => {
+    const plated = computePrice(cat('ring', { metal: { alloyId: '14kw', rhodium: true } }))
+    const bare = computePrice(cat('ring', { metal: { alloyId: '14kw', rhodium: false } }))
+    const yellow = computePrice(cat('ring', { metal: { alloyId: '14ky', rhodium: true } }))
+    expect(plated.platingFee).toBeGreaterThan(0)
+    expect(bare.platingFee).toBe(0)
+    expect(yellow.platingFee).toBe(0)   // yellow gold is not platable
+  })
+  it('titanium is priced per gram with no fine content', () => {
+    const ti = computeMetal(cat('ring', { metal: { alloyId: 'ti' } }))
+    expect(ti.cast).toBeGreaterThan(0)
+    expect(ti.fineGrams).toBe(0)
+    expect(ti.scrapCredit).toBe(0)
+    expect(ti.netMetalCost).toBeGreaterThan(0)
   })
 })
 

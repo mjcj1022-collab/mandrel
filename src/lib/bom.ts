@@ -59,6 +59,18 @@ export function computeBom(spec: DesignSpec): Bom {
   const setting = settingById(spec.setting.typeId)
   if (count > 0) lines.push({ kind: 'finding', item: `${setting.name} head`, detail: setting.variety, qty: `${count}`, cost: p.settingFee })
 
+  // Accent stones (halo / pavé / channel / sides)
+  if (p.accentCount > 0) {
+    const stone = stoneById(spec.center.stoneTypeId)
+    lines.push({
+      kind: 'stone',
+      item: `Accent ${stone.name.toLowerCase()} melee`,
+      detail: `${(setting.accentCt ?? 0.01).toFixed(2)} ct each · ${(p.accentCount * (setting.accentCt ?? 0.01)).toFixed(2)} ct total · bead/channel set`,
+      qty: `${p.accentCount}`,
+      cost: p.accentCost
+    })
+  }
+
   switch (spec.category) {
     case 'pendant':
       lines.push({ kind: 'finding', item: 'Bail', detail: `${spec.pendant.bailInner.toFixed(1)} mm opening, ${spec.pendant.bailGauge.toFixed(1)} mm gauge`, qty: '1', cost: 0 })

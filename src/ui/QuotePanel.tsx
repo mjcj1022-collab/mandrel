@@ -97,6 +97,7 @@ function techSheet(spec: DesignSpec) {
       `  Stones            ${money(p.stoneCost)}`,
       `  Setting labor     ${money(p.settingFee)}`
     ] : []),
+    ...(p.accentCount > 0 ? [`  Accent (${p.accentCount})      ${money(p.accentCost)}`] : []),
     `  Cast and finish   ${money(p.finishFee)}`,
     `  ESTIMATE          ${money(p.total)}`,
     '',
@@ -131,7 +132,9 @@ export function QuotePanel() {
     <div className="panel-block quote">
       <div className="qline"><span>Net metal — {alloy.name}</span><span>{money(p.metalCost)}</span></div>
       {hasStones && <div className="qline"><span>{p.stoneCount > 1 ? `${p.stoneCount} stones` : 'Center stone'}</span><span>{money(p.stoneCost)}</span></div>}
+      {p.accentCount > 0 && <div className="qline"><span>{p.accentCount} accent stones + setting</span><span>{money(p.accentCost)}</span></div>}
       {hasStones && <div className="qline"><span>Setting labor</span><span>{money(p.settingFee)}</span></div>}
+      {p.platingFee > 0 && <div className="qline"><span>Rhodium plating</span><span>{money(p.platingFee)}</span></div>}
       <div className="qline"><span>Cast, finish, polish</span><span>{money(p.finishFee)}</span></div>
       <div className="qtotal">
         <span className="lbl">Estimate</span>

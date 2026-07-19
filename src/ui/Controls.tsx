@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useDesign } from '../state/design'
-import { ALLOYS, SHAPES, STONES, SETTINGS, TEMPLATES, shapeById, stoneMm } from '../catalog'
+import { ALLOYS, SHAPES, STONES, SETTINGS, TEMPLATES, shapeById, stoneMm, alloyById, birthstoneMonth, stoneById, type Alloy } from '../catalog'
 import { sizeToDiameter, sizeToCircumference, formatSize, fitAdvice, sizeConversions } from '../lib/sizing'
 import { guardrails } from '../lib/pricing'
 import { settingById } from '../catalog'
@@ -216,8 +217,55 @@ function NecklaceControls() {
   )
 }
 
+const METAL_GROUPS: [string, (a: Alloy) => boolean][] = [
+  ['Gold', a => a.symbol === 'Au'],
+  ['Platinum group', a => a.symbol === 'Pt' || a.symbol === 'Pd'],
+  ['Silver', a => a.symbol === 'Ag'],
+  ['Contemporary', a => !a.precious]
+]
+
+function MetalGroup() {
+  const { spec, setAlloy, setRhodium } = useDesign()
+  const [nickelFree, setNickelFree] = useState(false)
+  const active = alloyById(spec.metal.alloyId)
+  const list = nickelFree ? ALLOYS.filter(a => a.nickelFree) : ALLOYS
+
+  return (
+    <Group title="Metal">
+      <label className="filter-row">
+        <input type="checkbox" checked={nickelFree} onChange={e => setNickelFree(e.target.checked)} />
+        Nickel-free only
+      </label>
+      {METAL_GROUPS.map(([label, pred]) => {
+        const items = list.filter(pred)
+        if (!items.length) return null
+        return (
+          <div key={label} className="metal-sub">
+            <p className="subhead">{label}</p>
+            <div className="opts">
+              {items.map(a => (
+                <button key={a.id} className="opt" aria-pressed={spec.metal.alloyId === a.id} onClick={() => setAlloy(a.id)}>
+                  <span className="sw" style={{ background: hex(a.color) }} />
+                  {a.short}<small>{a.density} g/cm³</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+      {active.platable && (
+        <label className="filter-row" style={{ marginTop: 12 }}>
+          <input type="checkbox" checked={!!spec.metal.rhodium} onChange={e => setRhodium(e.target.checked)} />
+          Rhodium plated<small>white finish, re-plate every 12–18 mo</small>
+        </label>
+      )}
+      {!active.precious && active.note && <div className="flag note"><b>{active.name}</b>{active.note}</div>}
+    </Group>
+  )
+}
+
 export function Controls() {
-  const { spec, setAlloy, setShape, setStone, setCarat, setSetting } = useDesign()
+  const { spec, setShape, setStone, setCarat, setSetting } = useDesign()
   const shape = shapeById(spec.center.shapeId)
   const mm = stoneMm(shape, spec.center.carat)
   const rails = guardrails(spec)
@@ -242,16 +290,7 @@ export function Controls() {
       {spec.category === 'bracelet' && <BraceletControls />}
       {spec.category === 'necklace' && <NecklaceControls />}
 
-      <Group title="Metal">
-        <div className="opts">
-          {ALLOYS.map(a => (
-            <button key={a.id} className="opt" aria-pressed={spec.metal.alloyId === a.id} onClick={() => setAlloy(a.id)}>
-              <span className="sw" style={{ background: hex(a.color) }} />
-              {a.short}<small>{a.density} g/cm³</small>
-            </button>
-          ))}
-        </div>
-      </Group>
+      <MetalGroup />
 
       {stoneRelevant && plainAllowed && (
         <Group title="Stone">
@@ -289,6 +328,11 @@ export function Controls() {
                 </button>
               ))}
             </div>
+            {(() => {
+              const st = stoneById(spec.center.stoneTypeId)
+              const bm = birthstoneMonth(st)
+              return <p className="hint">Mohs <b>{st.mohs}</b>{st.treatment ? ` · ${st.treatment}` : ''}{bm ? ` · ${bm} birthstone` : ''}</p>
+            })()}
           </Group>
 
           <Group title="Carat weight">

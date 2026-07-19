@@ -4,6 +4,7 @@ import { settingById, shapeById, stoneById, stoneMm } from '../catalog'
 import { computeMetal, type MetalResult } from './metal'
 
 export const FINISH_FEE = 95     // cast, file, sand, pre-polish, final polish
+export const RHODIUM_FEE = 45    // white-metal rhodium plating pass
 export const MARGIN = 1.35
 
 export interface PriceResult {
@@ -12,10 +13,15 @@ export interface PriceResult {
   stoneCost: number
   stoneCount: number
   settingFee: number
+  accentCost: number
+  accentCount: number
+  platingFee: number
   finishFee: number
   subtotal: number
   total: number
 }
+
+export const MELEE_LABOR_EACH = 12   // bead/channel setting labor per accent stone
 
 /**
  * How many set stones the piece carries, and the carat of each. A pair of studs
@@ -43,7 +49,15 @@ export function computePrice(spec: DesignSpec): PriceResult {
 
   const stoneCost = count > 0 ? count * stone.rate * Math.pow(caratEach, stone.exponent) : 0
   const settingFee = usesSetting(spec.category) && count > 0 ? count * setting.fee : 0
-  const subtotal = metal.netMetalCost + stoneCost + settingFee + FINISH_FEE
+
+  // Accent stones (halo, pavé, channel, three-stone sides): cheaper per-ct
+  // melee plus bead-setting labor.
+  const melee = count > 0 && setting.melee ? setting.melee : 0
+  const accentCt = setting.accentCt ?? 0.01
+  const accentCost = melee * (stone.rate * 0.5) * Math.pow(accentCt, stone.exponent) + melee * MELEE_LABOR_EACH
+
+  const platingFee = spec.metal.rhodium && metal.alloy.platable ? RHODIUM_FEE : 0
+  const subtotal = metal.netMetalCost + stoneCost + settingFee + accentCost + platingFee + FINISH_FEE
 
   return {
     metal,
@@ -51,6 +65,9 @@ export function computePrice(spec: DesignSpec): PriceResult {
     stoneCost,
     stoneCount: count,
     settingFee,
+    accentCost,
+    accentCount: melee,
+    platingFee,
     finishFee: FINISH_FEE,
     subtotal,
     total: subtotal * MARGIN

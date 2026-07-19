@@ -66,7 +66,7 @@ export interface NecklaceGeo {
 export interface DesignSpec {
   version: 1
   category: ProductCategory
-  metal: { alloyId: string }
+  metal: { alloyId: string; rhodium?: boolean }
   center: Center
   setting: { typeId: string }
   ring: RingGeo

@@ -144,21 +144,27 @@ const SYMBOL_BY: Record<AlloyFamily, Alloy['symbol']> = { gold: 'Au', silver: 'A
 /** Turn a composed alloy into a design-usable Alloy row. */
 export function compositionToAlloy(comp: AlloyComposition, id: string, name: string): Alloy {
   const white = comp.parts.some(p => ['ni', 'pd', 'pt', 'co'].includes(p.element.id))
+  const hasNickel = comp.parts.some(p => p.element.id === 'ni')
+  const precious = comp.family !== 'base'
   return {
     id,
     name,
     short: name.slice(0, 6).toUpperCase(),
     density: +comp.density.toFixed(2),
     fine: +comp.fineness.toFixed(3),
+    precious,
     symbol: SYMBOL_BY[comp.family],
     spot: SPOT_BY[comp.family],
+    perGram: precious ? 0 : 0.05,
     premium: 0.10,
     meltLoss: 0.02,
     buttonMin: comp.family === 'platinum' ? 15 : 8,
     finishPenalty: comp.family === 'platinum' ? 0.03 : white ? 0.01 : 0,
     color: comp.color,
     roughness: 0.2,
-    hallmark: comp.hallmark.split(' ')[0]
+    hallmark: comp.hallmark.split(' ')[0],
+    nickelFree: !hasNickel,
+    platable: white
   }
 }
 

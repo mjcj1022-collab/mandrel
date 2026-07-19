@@ -22,7 +22,13 @@ export const SHAPES: StoneShape[] = [
   { id:'ra', name:'Radiant',  segments:8,  mmFactor:5.20, lwRatio:1.25, icon:'M7 1h10l5 5v12l-5 5H7l-5-5V6z' },
   { id:'pe', name:'Pear',     segments:16, mmFactor:5.30, lwRatio:1.50, icon:'M12 1c3 5 7 8 7 13a7 7 0 11-14 0c0-5 4-8 7-13z' },
   { id:'ma', name:'Marquise', segments:16, mmFactor:4.55, lwRatio:2.00, icon:'M12 1c4 4 6 8 6 11s-2 7-6 11c-4-4-6-8-6-11s2-7 6-11z' },
-  { id:'he', name:'Heart',    segments:16, mmFactor:5.55, lwRatio:1.00, icon:'M12 22C6 17 2 13 2 9a5 5 0 0110-2 5 5 0 0110 2c0 4-4 8-10 13z' }
+  { id:'he', name:'Heart',    segments:16, mmFactor:5.55, lwRatio:1.00, icon:'M12 22C6 17 2 13 2 9a5 5 0 0110-2 5 5 0 0110 2c0 4-4 8-10 13z' },
+  { id:'tr', name:'Trillion', segments:3,  mmFactor:6.00, lwRatio:1.00, icon:'M12 3 L21 20 L3 20 Z' },
+  { id:'bg', name:'Baguette', segments:4,  mmFactor:3.80, lwRatio:2.50, icon:'M8 2 h8 v20 h-8 z' },
+  { id:'oe', name:'Old European', segments:16, mmFactor:6.20, lwRatio:1.00, icon:'M12 2a10 10 0 100 20 10 10 0 100-20z' },
+  { id:'ro', name:'Rose cut', segments:12, mmFactor:6.60, lwRatio:1.00, icon:'M12 3 L20 12 L12 21 L4 12 Z' },
+  { id:'ca', name:'Cabochon', segments:32, mmFactor:6.30, lwRatio:1.00, icon:'M3 15 a9 7 0 0118 0 z' },
+  { id:'br', name:'Briolette', segments:12, mmFactor:4.80, lwRatio:1.60, icon:'M12 2c3 5 6 8 6 12a6 6 0 01-12 0c0-4 3-7 6-12z' }
 ]
 
 export const shapeById = (id: string): StoneShape => SHAPES.find(s => s.id === id) ?? SHAPES[0]

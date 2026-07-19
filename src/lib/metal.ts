@@ -83,12 +83,21 @@ export function computeMetal(spec: DesignSpec, alloyId?: string): MetalResult {
   const fineGrams = finished * alloy.fine
   const fineOzt = fineGrams / OZT
 
-  const purchaseCost = ((pour * alloy.fine) / OZT) * alloy.spot * (1 + alloy.premium)
-  const scrapClean =
-    (((sprue + button) * RECOVERY.cleanFraction * alloy.fine) / OZT) * alloy.spot * RECOVERY.cleanPayout
-  const scrapSweep =
-    ((lossGrams * RECOVERY.sweepFraction * alloy.fine) / OZT) * alloy.spot * RECOVERY.sweepPayout
-  const scrapCredit = scrapClean + scrapSweep
+  let purchaseCost: number
+  let scrapCredit: number
+  if (alloy.precious) {
+    // Priced on fine troy ounces of the precious content; scrap comes back.
+    purchaseCost = ((pour * alloy.fine) / OZT) * alloy.spot * (1 + alloy.premium)
+    const scrapClean =
+      (((sprue + button) * RECOVERY.cleanFraction * alloy.fine) / OZT) * alloy.spot * RECOVERY.cleanPayout
+    const scrapSweep =
+      ((lossGrams * RECOVERY.sweepFraction * alloy.fine) / OZT) * alloy.spot * RECOVERY.sweepPayout
+    scrapCredit = scrapClean + scrapSweep
+  } else {
+    // Base / contemporary metals: priced per gram of stock, scrap value negligible.
+    purchaseCost = pour * alloy.perGram * (1 + alloy.premium)
+    scrapCredit = 0
+  }
 
   return {
     alloy, volume, cast, finished, finishingLoss: loss, lossGrams,
