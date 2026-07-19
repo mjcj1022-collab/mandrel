@@ -1,56 +1,67 @@
 # Blue Flame — backend
 
-Commerce, accounts, orders and the multi-tenant API for Blue Flame. This is a
-**scaffold**: the code and schema are here, but it does not run until you
-provision the three things below. The client app works standalone without it —
-the backend is what turns saved designs into paid orders across multiple shops.
+Commerce, accounts, orders and the multi-tenant API. **This runs today** on
+embedded SQLite with real password auth — no external database to provision.
+Stripe (payments) and Postgres (scale) are optional upgrades.
 
-## What you provision
-
-1. **A Postgres database** — Neon, Supabase, Railway, or RDS all work. Put its
-   connection string in `DATABASE_URL`.
-2. **A Stripe account** — from the dashboard, copy the secret key into
-   `STRIPE_SECRET_KEY` and the webhook signing secret into
-   `STRIPE_WEBHOOK_SECRET`. Use **test** keys first.
-3. **A host for this server** — Render, Railway, Fly.io, or a VPS. Set
-   `CLIENT_ORIGIN` to where the client is served for CORS.
-
-Claude does not handle your keys — you paste them into `.env` yourself.
-
-## Run it
+## Run it locally (works now)
 
 ```bash
 cd server
-cp .env.example .env      # then fill in the values
 npm install
-npm run migrate           # applies schema.sql
-npm run dev               # http://localhost:8787/api/health
+npm run seed     # creates the "Blue Flame" shop + users mike / liliya
+npm run start    # http://localhost:8787/api/health
 ```
+
+Data lives in `server/blueflame.db` (SQLite file, gitignored). That's it — no
+database server, no accounts. Verified end to end: register/login (scrypt +
+JWT), save/list designs, quotes, orders with an approval timestamp, and
+tenant-scoped, auth-gated access.
 
 ## Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
 | GET  | `/api/health` | liveness |
-| POST | `/api/auth/register` · `/login` | accounts (JWT) — **stubbed**, add password hashing |
-| GET/POST | `/api/designs` | save/list designs (the DesignSpec JSON) |
-| GET  | `/api/designs/:id` | load a design |
+| POST | `/api/auth/register` | create a shop (tenant) + admin user → token |
+| POST | `/api/auth/login` | email + password → JWT |
+| GET  | `/api/me` | current user + tenant |
+| GET/POST/PUT | `/api/designs[/:id]` | save / list / load / update designs (DesignSpec JSON) |
 | POST | `/api/quotes` | versioned quote with expiry |
-| POST | `/api/orders` | open an order |
-| PATCH| `/api/orders/:id/stage` | advance the pipeline (records approval timestamp) |
-| POST | `/api/checkout` | Stripe payment intent → `clientSecret` |
-| POST | `/api/stripe/webhook` | mark orders paid — **stubbed**, verify signature |
+| GET/POST | `/api/orders` | list / open orders |
+| PATCH| `/api/orders/:id/stage` | advance pipeline (records approval time) |
+| POST | `/api/checkout` | Stripe payment intent (needs a key — see below) |
 
-## Still to implement (marked `TODO` in the code)
+## Wire the client to it
 
-- Real password hashing (argon2/bcrypt) in `auth` register/login
-- Stripe webhook signature verification in `/api/stripe/webhook`
-- Wiring the client: point the app at `API_BASE`, send the JWT, and replace the
-  localStorage library/orders with these endpoints. The DesignSpec already
-  serializes cleanly (it's what `share.ts` encodes), so the client sends it as-is.
+The client ships a helper at `src/lib/api.ts`. Set the API base at build time:
 
-## Multi-tenant model
+```bash
+# in the client (repo root)
+VITE_API_URL=http://localhost:8787 npm run dev
+```
 
-Every row is scoped to a `tenant` (a shop). Roles — client / associate / cad /
-production / admin — gate access via `requireRole(...)`. White-label uses
-`tenants.slug`. See `schema.sql`.
+The DesignSpec already serializes cleanly (it's what `share.ts` encodes), so the
+client posts it as-is. Swap the localStorage library/orders for these endpoints
+when you're ready.
+
+## Going public (for the live site)
+
+The deployed client on GitHub Pages can't reach `localhost`. To make the **live**
+site transactional:
+
+1. **Host this server** — Render, Railway or Fly.io all have a free tier. Point
+   it at a persistent disk (for the SQLite file) or a managed Postgres.
+2. Rebuild the client with `VITE_API_URL=https://your-api.example.com`.
+3. **Payments:** create a Stripe account, `npm i stripe`, set `STRIPE_SECRET_KEY`
+   (test key first). `/api/checkout` then returns a real client secret.
+
+Claude does not handle your keys — you set them in `.env` yourself.
+
+## Notes
+
+- Passwords: scrypt via `node:crypto` (no native deps). JWT via `JWT_SECRET`.
+- SQLite via `node:sqlite` (built into Node 22+). For scale, port to Postgres —
+  the SQL is standard.
+- Multi-tenant: every row is scoped to a `tenant`; roles (client / associate /
+  cad / production / admin) gate access via `requireRole(...)`.

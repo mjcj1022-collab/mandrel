@@ -1,12 +1,10 @@
-import Stripe from 'stripe'
-
-// Set STRIPE_SECRET_KEY (test key first). Null until configured so the rest of
-// the API still boots for local development.
-const key = process.env.STRIPE_SECRET_KEY
-export const stripe = key ? new Stripe(key) : null
-
+// Stripe is optional — payments need STRIPE_SECRET_KEY and `npm i stripe`.
+// Everything else in the API works without it.
 export async function createPaymentIntent(amountCents: number, metadata: Record<string, string>) {
-  if (!stripe) throw new Error('Stripe not configured — set STRIPE_SECRET_KEY in .env')
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key) throw new Error('Stripe not configured — set STRIPE_SECRET_KEY in .env')
+  const StripeMod = await import('stripe').catch(() => { throw new Error('Stripe not installed — run: npm i stripe') })
+  const stripe = new StripeMod.default(key)
   return stripe.paymentIntents.create({
     amount: amountCents,
     currency: 'usd',
