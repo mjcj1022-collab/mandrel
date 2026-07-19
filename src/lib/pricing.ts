@@ -1,6 +1,6 @@
 import type { DesignSpec } from '../spec/types'
 import { usesSetting, stoneOnPiece, NO_STONE } from '../spec/types'
-import { settingById, shapeById, stoneById, stoneMm, finishById } from '../catalog'
+import { settingById, shapeById, stoneById, stoneMm, finishById, alloyById } from '../catalog'
 import { computeMetal, type MetalResult } from './metal'
 import { engraveFee } from './engrave'
 
@@ -127,6 +127,15 @@ export function guardrails(spec: DesignSpec): Guardrail[] {
 
   if (spec.category === 'ring' && width > spec.ring.width * 3.4 && spec.ring.thickness < 1.8) {
     out.push({ level: 'warn', title: 'Shank may be under-built', body: `A ${width.toFixed(1)} mm stone on a ${spec.ring.width.toFixed(1)} x ${spec.ring.thickness.toFixed(1)} mm shank is top-heavy and will spin. Increase thickness to at least 1.8 mm.` })
+  }
+
+  // Compliance surfacing (spec §10)
+  const alloy = alloyById(spec.metal.alloyId)
+  if (!alloy.nickelFree) {
+    out.push({ level: 'warn', title: 'Nickel content', body: `${alloy.name} contains nickel; the EU restricts prolonged skin contact. Offer a nickel-free alternative for sensitive clients.` })
+  }
+  if (usesSetting(spec.category) && stoneOnPiece(spec) && /not/i.test(setting.resizeRange)) {
+    out.push({ level: 'note', title: 'Confirm size before casting', body: `A ${setting.name.toLowerCase()} setting ${setting.resizeRange}. Surface this to the client at design time, not after casting.` })
   }
 
   return out
