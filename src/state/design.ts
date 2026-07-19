@@ -12,6 +12,9 @@ interface DesignStore {
   compareOpen: boolean
   market: Market
   setMarket: (patch: Partial<Market>) => void
+  variants: DesignSpec[]
+  pinVariant: () => void
+  unpinVariant: (i: number) => void
   setCategory: (c: ProductCategory) => void
   setRing: (patch: Partial<DesignSpec['ring']>) => void
   setPendant: (patch: Partial<DesignSpec['pendant']>) => void
@@ -49,6 +52,9 @@ export const useDesign = create<DesignStore>(set => ({
   market: { ...MARKET },
   // Update the shared engine settings and clone spec so every price display refreshes.
   setMarket: patch => { applyMarket(patch); set(s => ({ market: { ...s.market, ...patch }, spec: { ...s.spec } })) },
+  variants: [],
+  pinVariant: () => set(s => (s.variants.length >= 4 ? {} : { variants: [...s.variants, s.spec] })),
+  unpinVariant: i => set(s => ({ variants: s.variants.filter((_, j) => j !== i) })),
   setCategory: c => set(s => ({ spec: { ...s.spec, category: c } })),
   setRing: patch => set(s => ({ spec: { ...s.spec, ring: { ...s.spec.ring, ...patch } } })),
   setPendant: patch => set(s => ({ spec: { ...s.spec, pendant: { ...s.spec.pendant, ...patch } } })),

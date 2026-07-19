@@ -137,6 +137,10 @@ table.cmp td.best{color:var(--patina);font-weight:700}
 .xyz input:focus{border-color:var(--karat);outline:none}
 select.lib-name{appearance:none;-webkit-appearance:none}
 
+/* variants */
+.v-acts{display:flex;gap:4px;justify-content:flex-end}
+table.cmp.variants td,table.cmp.variants th{white-space:nowrap}
+
 /* cost editor */
 .cost-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 2px}
 .cost-grid label{display:flex;justify-content:space-between;align-items:center;gap:6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:#8A9295}
