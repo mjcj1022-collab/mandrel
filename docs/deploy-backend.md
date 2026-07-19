@@ -8,13 +8,14 @@ gets real accounts, cloud-synced designs, orders and (optionally) payments.
 
 ## 1. Push the code (already done)
 
-The backend lives in `server/` and includes a `render.yaml` blueprint.
+The backend lives in `server/`; the `render.yaml` blueprint sits at the repo
+root (where Render's Blueprint feature looks for it).
 
 ## 2. Create the service on Render
 
 1. Sign in at **https://render.com** (free tier is fine).
 2. **New → Blueprint** → connect the `blue-flame` GitHub repo → Render reads
-   `server/render.yaml` and proposes the **blue-flame-api** web service.
+   `render.yaml` (repo root) and proposes the **blue-flame-api** web service.
 3. Click **Apply**. Render runs `npm install`, seeds the shop + `mike`/`liliya`,
    and starts the API. `JWT_SECRET` is generated for you; a 1 GB disk keeps the
    SQLite file across restarts.
