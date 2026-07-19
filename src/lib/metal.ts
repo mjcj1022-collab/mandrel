@@ -66,9 +66,18 @@ export function finishingLoss(spec: DesignSpec, alloy: Alloy): number {
 }
 
 export function computeMetal(spec: DesignSpec, alloyId?: string): MetalResult {
-  const alloy = alloyById(alloyId ?? spec.metal.alloyId)
-  const { total: volume } = computeVolume(spec)
+  const vb = computeVolume(spec)
+  // Two-tone: cast the shank and the head in different alloys and combine.
+  // An explicit alloyId (from the per-alloy comparison) forces a single metal.
+  if (!alloyId && spec.metal.twoTone && spec.metal.headAlloyId && vb.head > 0) {
+    const shank = metalFromVolume(vb.shank, alloyById(spec.metal.alloyId), spec)
+    const head = metalFromVolume(vb.head, alloyById(spec.metal.headAlloyId), spec)
+    return combineMetal(shank, head)
+  }
+  return metalFromVolume(vb.total, alloyById(alloyId ?? spec.metal.alloyId), spec)
+}
 
+function metalFromVolume(volume: number, alloy: Alloy, spec: DesignSpec): MetalResult {
   const cast = (volume / 1000) * alloy.density
   const loss = finishingLoss(spec, alloy)
   const finished = cast * (1 - loss)
@@ -106,6 +115,25 @@ export function computeMetal(spec: DesignSpec, alloyId?: string): MetalResult {
     purchaseCost, scrapCredit, netMetalCost: purchaseCost - scrapCredit,
     patternWax: (volume / 1000) * PATTERN_DENSITY.injectionWax,
     patternResin: (volume / 1000) * PATTERN_DENSITY.castableResin
+  }
+}
+
+/** Sum two castings (two-tone). The shank alloy heads the result for display. */
+function combineMetal(a: MetalResult, b: MetalResult): MetalResult {
+  const cast = a.cast + b.cast
+  const pour = a.pour + b.pour
+  return {
+    alloy: a.alloy,
+    volume: a.volume + b.volume,
+    cast, finished: a.finished + b.finished,
+    finishingLoss: cast > 0 ? (a.lossGrams + b.lossGrams) / cast : a.finishingLoss,
+    lossGrams: a.lossGrams + b.lossGrams,
+    sprue: a.sprue + b.sprue, button: a.button + b.button,
+    pour, pourRatio: cast > 0 ? pour / cast : a.pourRatio,
+    fineGrams: a.fineGrams + b.fineGrams, fineOzt: a.fineOzt + b.fineOzt,
+    purchaseCost: a.purchaseCost + b.purchaseCost, scrapCredit: a.scrapCredit + b.scrapCredit,
+    netMetalCost: a.netMetalCost + b.netMetalCost,
+    patternWax: a.patternWax + b.patternWax, patternResin: a.patternResin + b.patternResin
   }
 }
 

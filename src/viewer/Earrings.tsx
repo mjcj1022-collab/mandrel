@@ -9,6 +9,8 @@ import { useMetalMaterial } from './material'
 function One({ spec, x }: { spec: DesignSpec; x: number }) {
   const alloy = alloyById(spec.metal.alloyId)
   const metal = useMetalMaterial(alloy, spec.finish)
+  const headMetalMat = useMetalMaterial(alloyById(spec.metal.headAlloyId ?? spec.metal.alloyId), spec.finish)
+  const headMetal = spec.metal.twoTone && spec.metal.headAlloyId ? headMetalMat : metal
   const { postGauge, postLength, dropLength } = spec.earring
   const dropY = dropLength > 0 ? dropLength : 0
 
@@ -22,7 +24,7 @@ function One({ spec, x }: { spec: DesignSpec; x: number }) {
       )}
       {stoneOnPiece(spec) && (
         <group position={[0, -dropY / 2, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <Head material={metal} shapeId={spec.center.shapeId} stoneTypeId={spec.center.stoneTypeId}
+          <Head material={headMetal} shapeId={spec.center.shapeId} stoneTypeId={spec.center.stoneTypeId}
             carat={spec.center.carat} settingId={spec.setting.typeId} grading={spec.center.grading} />
         </group>
       )}

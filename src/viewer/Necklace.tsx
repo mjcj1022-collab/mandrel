@@ -10,6 +10,8 @@ const MM_PER_INCH = 25.4
 export function Necklace({ spec }: { spec: DesignSpec }) {
   const alloy = alloyById(spec.metal.alloyId)
   const metal = useMetalMaterial(alloy, spec.finish)
+  const headMetalMat = useMetalMaterial(alloyById(spec.metal.headAlloyId ?? spec.metal.alloyId), spec.finish)
+  const headMetal = spec.metal.twoTone && spec.metal.headAlloyId ? headMetalMat : metal
   const { length, gauge, hasPendant } = spec.necklace
   const circ = length * MM_PER_INCH
   const R = circ / (Math.PI * 2)
@@ -25,7 +27,7 @@ export function Necklace({ spec }: { spec: DesignSpec }) {
       {hasPendant && (
         <group position={[0, -R * 1.15 - d.r * d.lwRatio, 0]}>
           <group rotation={[Math.PI / 2, 0, 0]}>
-            <Head material={metal} shapeId={spec.center.shapeId} stoneTypeId={spec.center.stoneTypeId}
+            <Head material={headMetal} shapeId={spec.center.shapeId} stoneTypeId={spec.center.stoneTypeId}
               carat={spec.center.carat} settingId={spec.setting.typeId} grading={spec.center.grading} />
           </group>
         </group>

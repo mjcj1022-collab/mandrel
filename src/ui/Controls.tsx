@@ -225,7 +225,7 @@ const METAL_GROUPS: [string, (a: Alloy) => boolean][] = [
 ]
 
 function MetalGroup() {
-  const { spec, setAlloy, setRhodium } = useDesign()
+  const { spec, setAlloy, setRhodium, setTwoTone, setHeadAlloy } = useDesign()
   const [nickelFree, setNickelFree] = useState(false)
   const active = alloyById(spec.metal.alloyId)
   const list = nickelFree ? ALLOYS.filter(a => a.nickelFree) : ALLOYS
@@ -259,6 +259,25 @@ function MetalGroup() {
           Rhodium plated<small>white finish, re-plate every 12–18 mo</small>
         </label>
       )}
+
+      <label className="filter-row" style={{ marginTop: 6 }}>
+        <input type="checkbox" checked={!!spec.metal.twoTone} onChange={e => setTwoTone(e.target.checked)} />
+        Two-tone<small>separate metal for the head</small>
+      </label>
+      {spec.metal.twoTone && (
+        <>
+          <div className="subhead">Head / prong metal</div>
+          <div className="opts">
+            {ALLOYS.filter(a => a.precious).map(a => (
+              <button key={a.id} className="opt" aria-pressed={(spec.metal.headAlloyId ?? spec.metal.alloyId) === a.id} onClick={() => setHeadAlloy(a.id)}>
+                <span className="sw" style={{ background: hex(a.color) }} />
+                {a.short}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {!active.precious && active.note && <div className="flag note"><b>{active.name}</b>{active.note}</div>}
     </Group>
   )

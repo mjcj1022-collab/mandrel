@@ -85,6 +85,7 @@ function techSheet(spec: DesignSpec) {
     '',
     'METAL',
     `  Alloy             ${alloy.name}, density ${alloy.density} g/cm3, ${(alloy.fine * 100).toFixed(1)}% ${alloy.symbol}`,
+    spec.metal.twoTone && spec.metal.headAlloyId ? `  Head alloy        ${alloyById(spec.metal.headAlloyId).name} (two-tone, cast separately)` : '',
     `  Model volume      ${Math.round(m.volume).toLocaleString()} mm3`,
     `  Cast weight       ${m.cast.toFixed(2)} g   (${gToDwt(m.cast).toFixed(2)} dwt)`,
     `  Finished weight   ${m.finished.toFixed(2)} g   (${gToDwt(m.finished).toFixed(2)} dwt)`,

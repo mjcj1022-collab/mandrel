@@ -152,6 +152,23 @@ describe('non-ring weight relationships hold', () => {
   })
 })
 
+describe('two-tone metals', () => {
+  const single = computeMetal(cat('ring', { metal: { alloyId: '14ky' } }))
+  const twoTone = computeMetal(cat('ring', { metal: { alloyId: '14ky', twoTone: true, headAlloyId: 'pt95' } }))
+  const allPt = computeMetal(cat('ring', { metal: { alloyId: 'pt95' } }))
+  it('a platinum head makes the piece heavier than all-gold but lighter than all-platinum', () => {
+    expect(twoTone.cast).toBeGreaterThan(single.cast)
+    expect(twoTone.cast).toBeLessThan(allPt.cast)
+  })
+  it('the shank alloy heads the combined result for display', () => {
+    expect(twoTone.alloy.id).toBe('14ky')
+  })
+  it('an explicit alloy id in the comparison ignores two-tone', () => {
+    const forced = computeMetal(cat('ring', { metal: { alloyId: '14ky', twoTone: true, headAlloyId: 'pt95' } }), '18ky')
+    expect(forced.alloy.id).toBe('18ky')
+  })
+})
+
 describe('a plain band carries no stone or head', () => {
   const stoned = cat('ring', { center: { ...DEFAULT_SPEC.center, shapeId: 'rd', stoneTypeId: 'dia', carat: 1 } })
   const plain = cat('ring', { center: { ...DEFAULT_SPEC.center, shapeId: 'rd', stoneTypeId: NO_STONE, carat: 1 } })

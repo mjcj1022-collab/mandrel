@@ -9,6 +9,8 @@ import { useMetalMaterial } from './material'
 export function Pendant({ spec }: { spec: DesignSpec }) {
   const alloy = alloyById(spec.metal.alloyId)
   const metal = useMetalMaterial(alloy, spec.finish)
+  const headMetalMat = useMetalMaterial(alloyById(spec.metal.headAlloyId ?? spec.metal.alloyId), spec.finish)
+  const headMetal = spec.metal.twoTone && spec.metal.headAlloyId ? headMetalMat : metal
   const d = stoneDims(spec.center.shapeId, spec.center.carat)
   const { bailInner, bailGauge, hasChain } = spec.pendant
 
@@ -21,7 +23,7 @@ export function Pendant({ spec }: { spec: DesignSpec }) {
     <group position={[0, 2, 0]}>
       {stoneOnPiece(spec) && (
         <group rotation={[Math.PI / 2, 0, 0]}>
-          <Head material={metal} shapeId={spec.center.shapeId} stoneTypeId={spec.center.stoneTypeId}
+          <Head material={headMetal} shapeId={spec.center.shapeId} stoneTypeId={spec.center.stoneTypeId}
             carat={spec.center.carat} settingId={spec.setting.typeId} grading={spec.center.grading} />
         </group>
       )}
