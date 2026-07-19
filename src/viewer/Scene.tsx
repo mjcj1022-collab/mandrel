@@ -50,6 +50,8 @@ const SCENES = ['studio', 'daylight', 'case', 'candle', 'office']
 
 export function Scene() {
   const spec = useDesign(s => s.spec)
+  const wire = useDesign(s => s.viewWire)
+  const toggleWire = useDesign(s => s.toggleWire)
   const [spin, setSpin] = useState(true)
   const [top, setTop] = useState(false)
   const [scene, setScene] = useState('studio')
@@ -106,6 +108,7 @@ export function Scene() {
         <div className="stage-btns">
           <button className="sbtn" aria-pressed={spin} onClick={() => setSpin(v => !v)}>Turntable</button>
           <button className="sbtn" aria-pressed={top} onClick={() => setTop(v => !v)}>Top view</button>
+          <button className="sbtn" aria-pressed={wire} onClick={toggleWire}>Wireframe</button>
         </div>
       </div>
       {top && <div className="topview-note">Drag to look straight down — the plan view shows the setting and profile.</div>}

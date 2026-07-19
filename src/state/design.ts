@@ -12,6 +12,8 @@ interface DesignStore {
   compareOpen: boolean
   market: Market
   setMarket: (patch: Partial<Market>) => void
+  viewWire: boolean
+  toggleWire: () => void
   variants: DesignSpec[]
   pinVariant: () => void
   unpinVariant: (i: number) => void
@@ -52,6 +54,8 @@ export const useDesign = create<DesignStore>(set => ({
   market: { ...MARKET },
   // Update the shared engine settings and clone spec so every price display refreshes.
   setMarket: patch => { applyMarket(patch); set(s => ({ market: { ...s.market, ...patch }, spec: { ...s.spec } })) },
+  viewWire: false,
+  toggleWire: () => set(s => ({ viewWire: !s.viewWire })),
   variants: [],
   pinVariant: () => set(s => (s.variants.length >= 4 ? {} : { variants: [...s.variants, s.spec] })),
   unpinVariant: i => set(s => ({ variants: s.variants.filter((_, j) => j !== i) })),
