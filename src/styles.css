@@ -40,6 +40,13 @@ code{font-family:var(--mono);font-size:.92em}
 .stage-btns{display:flex;gap:8px;pointer-events:auto}
 .stage-light{position:absolute;right:20px;top:56px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:60%;pointer-events:auto}
 .stage-light .sbtn{padding:6px 9px;font-size:9px}
+.stage-tools{position:absolute;left:20px;bottom:58px;display:flex;flex-direction:column;gap:8px;pointer-events:auto}
+.explode-row{display:flex;align-items:center;gap:8px;background:rgba(14,17,19,.8);border:1px solid var(--rule-dark);padding:6px 10px}
+.explode-row span{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#9AA4A7}
+.explode-row input{width:110px}
+.skin-row{display:flex;gap:6px}
+.skin{width:22px;height:22px;border:1px solid var(--rule-dark);cursor:pointer;padding:0}
+.skin.on{border-color:var(--karat);box-shadow:0 0 0 1px var(--karat)}
 .sbtn{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;background:rgba(14,17,19,.8);border:1px solid var(--rule-dark);color:#9AA4A7;padding:7px 11px;cursor:pointer}
 .sbtn:hover{color:#fff}
 .sbtn[aria-pressed="true"]{background:var(--karat);border-color:var(--karat);color:#141414;font-weight:700}

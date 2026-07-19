@@ -48,10 +48,19 @@ const LIGHTING: Record<string, Lighting> = {
 }
 const SCENES = ['studio', 'daylight', 'case', 'candle', 'office']
 
+const SKIN_TONES = ['#E7C1A0', '#C89778', '#A56A43', '#6E4326']
+
 export function Scene() {
   const spec = useDesign(s => s.spec)
   const wire = useDesign(s => s.viewWire)
   const toggleWire = useDesign(s => s.toggleWire)
+  const explode = useDesign(s => s.explode)
+  const setExplode = useDesign(s => s.setExplode)
+  const tryOn = useDesign(s => s.tryOn)
+  const toggleTryOn = useDesign(s => s.toggleTryOn)
+  const skinTone = useDesign(s => s.skinTone)
+  const setSkinTone = useDesign(s => s.setSkinTone)
+  const isRing = spec.category === 'ring'
   const [spin, setSpin] = useState(true)
   const [top, setTop] = useState(false)
   const [scene, setScene] = useState('studio')
@@ -109,7 +118,22 @@ export function Scene() {
           <button className="sbtn" aria-pressed={spin} onClick={() => setSpin(v => !v)}>Turntable</button>
           <button className="sbtn" aria-pressed={top} onClick={() => setTop(v => !v)}>Top view</button>
           <button className="sbtn" aria-pressed={wire} onClick={toggleWire}>Wireframe</button>
+          {isRing && <button className="sbtn" aria-pressed={tryOn} onClick={toggleTryOn}>Try-on</button>}
         </div>
+      </div>
+
+      <div className="stage-tools">
+        <label className="explode-row">
+          <span>Explode</span>
+          <input type="range" min={0} max={1} step={0.02} value={explode} onChange={e => setExplode(+e.target.value)} />
+        </label>
+        {isRing && tryOn && (
+          <div className="skin-row">
+            {SKIN_TONES.map(c => (
+              <button key={c} className={`skin ${skinTone === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setSkinTone(c)} aria-label="skin tone" />
+            ))}
+          </div>
+        )}
       </div>
       {top && <div className="topview-note">Drag to look straight down — the plan view shows the setting and profile.</div>}
     </div>

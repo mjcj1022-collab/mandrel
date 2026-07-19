@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { DesignSpec } from '../spec/types'
 import { stoneOnPiece } from '../spec/types'
+import { useDesign } from '../state/design'
 import { alloyById, settingById } from '../catalog'
 import { sizeToDiameter } from '../lib/sizing'
 import { shankGeometry } from '../lib/sculpt'
@@ -33,9 +34,19 @@ export function Ring({ spec }: { spec: DesignSpec }) {
 
   const setting = settingById(spec.setting.typeId)
   const halo = stoneOnPiece(spec) && (setting.id === 'hal' || setting.id === 'hl2') && (setting.melee ?? 0) > 0
+  const explode = useDesign(s => s.explode)
+  const tryOn = useDesign(s => s.tryOn)
+  const skin = useDesign(s => s.skinTone)
 
   return (
     <group>
+      {tryOn && (
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+          <cylinderGeometry args={[insideR * 0.92, insideR * 0.84, 70, 28]} />
+          <meshStandardMaterial color={skin} roughness={0.75} metalness={0} />
+        </mesh>
+      )}
+
       {!isHidden(spec, 'band') && (bandGeo
         ? <mesh material={metal} geometry={bandGeo} />
         : <mesh material={metal} scale={[1, 1, width / thickness]}><torusGeometry args={[centreR, tube, 24, 180]} /></mesh>)}
@@ -43,7 +54,7 @@ export function Ring({ spec }: { spec: DesignSpec }) {
       {!isHidden(spec, 'engraving') && spec.engraving.text.trim() && <EngravingText spec={spec} />}
 
       {stoneOnPiece(spec) && (
-        <group position={[0, stoneY, 0]}>
+        <group position={[0, stoneY + explode * 7, 0]}>
           <Head material={headMetal} shapeId={spec.center.shapeId} stoneTypeId={spec.center.stoneTypeId}
             carat={spec.center.carat} settingId={spec.setting.typeId} grading={spec.center.grading}
             showStone={!isHidden(spec, 'stone')} showSetting={!isHidden(spec, 'head')} />

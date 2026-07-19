@@ -14,6 +14,12 @@ interface DesignStore {
   setMarket: (patch: Partial<Market>) => void
   viewWire: boolean
   toggleWire: () => void
+  explode: number
+  setExplode: (v: number) => void
+  tryOn: boolean
+  toggleTryOn: () => void
+  skinTone: string
+  setSkinTone: (c: string) => void
   variants: DesignSpec[]
   pinVariant: () => void
   unpinVariant: (i: number) => void
@@ -56,6 +62,12 @@ export const useDesign = create<DesignStore>(set => ({
   setMarket: patch => { applyMarket(patch); set(s => ({ market: { ...s.market, ...patch }, spec: { ...s.spec } })) },
   viewWire: false,
   toggleWire: () => set(s => ({ viewWire: !s.viewWire })),
+  explode: 0,
+  setExplode: v => set({ explode: v }),
+  tryOn: false,
+  toggleTryOn: () => set(s => ({ tryOn: !s.tryOn })),
+  skinTone: '#C89778',
+  setSkinTone: c => set({ skinTone: c }),
   variants: [],
   pinVariant: () => set(s => (s.variants.length >= 4 ? {} : { variants: [...s.variants, s.spec] })),
   unpinVariant: i => set(s => ({ variants: s.variants.filter((_, j) => j !== i) })),
