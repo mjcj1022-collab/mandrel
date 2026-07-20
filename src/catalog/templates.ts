@@ -57,6 +57,16 @@ export const TEMPLATES: Template[] = [
     build: () => base({ category: 'ring', center: { stoneTypeId: NO_STONE }, ring: { width: 2.5, thickness: 1.6, fit: 'standard' } }) },
   { id: 'mens-band', name: "Men's Band", blurb: 'Wide 6 mm comfort, white', category: 'ring',
     build: () => base({ category: 'ring', metal: { alloyId: '14kw' }, center: { stoneTypeId: NO_STONE }, ring: { size: 10, width: 6, thickness: 1.9, fit: 'comfort' } }) },
+  { id: 'halo', name: 'Halo', blurb: 'Round center, single halo, 18KW', category: 'ring',
+    build: () => base({ category: 'ring', metal: { alloyId: '18kw' }, center: { shapeId: 'rd', stoneTypeId: 'dia', carat: 1 }, setting: { typeId: 'hal' } }) },
+  { id: 'double-halo', name: 'Double Halo', blurb: 'Layered halo, cushion 1.25 ct', category: 'ring',
+    build: () => base({ category: 'ring', metal: { alloyId: '18kw' }, center: { shapeId: 'cu', stoneTypeId: 'dia', carat: 1.25 }, setting: { typeId: 'hl2' } }) },
+  { id: 'three-stone', name: 'Three-Stone', blurb: 'Trilogy, emerald center, Pt', category: 'ring',
+    build: () => base({ category: 'ring', metal: { alloyId: 'pt95' }, center: { shapeId: 'em', stoneTypeId: 'dia', carat: 1.2 }, setting: { typeId: 'th3' } }) },
+  { id: 'pave-band', name: 'Pavé Solitaire', blurb: 'Pavé shank, round 1 ct, 18KW', category: 'ring',
+    build: () => base({ category: 'ring', metal: { alloyId: '18kw' }, center: { shapeId: 'rd', stoneTypeId: 'dia', carat: 1 }, setting: { typeId: 'pav' }, ring: { width: 2.2, thickness: 1.9 } }) },
+  { id: 'channel', name: 'Channel Band', blurb: 'Flush-set row, round 0.9 ct', category: 'ring',
+    build: () => base({ category: 'ring', metal: { alloyId: '14kw' }, center: { shapeId: 'rd', stoneTypeId: 'dia', carat: 0.9 }, setting: { typeId: 'chn' }, ring: { width: 2.6, thickness: 1.9 } }) },
 
   // Pendants
   { id: 'solitaire-pendant', name: 'Solitaire Pendant', blurb: 'Bezel, 1 ct, 18" chain', category: 'pendant',
