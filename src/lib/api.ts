@@ -37,5 +37,5 @@ export const api = {
   deleteDesign: (id: string) => req(`/api/designs/${id}`, { method: 'DELETE' }),
   createOrder: (design_id: string) => req('/api/orders', { method: 'POST', body: JSON.stringify({ design_id }) }),
   advanceOrder: (id: string, stage: string) => req(`/api/orders/${id}/stage`, { method: 'PATCH', body: JSON.stringify({ stage }) }),
-  checkout: (amount_cents: number, order_id: string) => req('/api/checkout', { method: 'POST', body: JSON.stringify({ amount_cents, order_id }) }) as Promise<{ clientSecret: string }>
+  checkout: (amount_cents: number, order_id: string, design_id?: string) => req('/api/checkout', { method: 'POST', body: JSON.stringify({ amount_cents, order_id, design_id }) }) as Promise<{ clientSecret: string; order_id: string | null }>
 }

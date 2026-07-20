@@ -61,6 +61,20 @@ and the button stays hidden (the client never sees a secret key).
 Test card: `4242 4242 4242 4242`, any future expiry, any CVC. Switch both keys
 to `sk_live_…` / `pk_live_…` when you're ready to take real money.
 
+**Webhook (auto-advance orders on payment):**
+The API exposes `POST /api/webhook`. When a payment settles, Stripe calls it and
+the server advances the linked order to **Approved** and records the payment.
+7. Stripe → **Developers → Webhooks → Add endpoint**. URL:
+   `https://blue-flame-api.onrender.com/api/webhook`. Events: **`payment_intent.succeeded`**.
+8. Copy the endpoint's **Signing secret** (`whsec_…`).
+9. Render → blue-flame-api → **Environment**, add `STRIPE_WEBHOOK_SECRET`.
+
+Now a completed checkout (the client "Take payment") opens/settles an order and
+moves it to Approved automatically — the order pipeline advances itself. The
+endpoint verifies Stripe's signature against the raw body and is idempotent, so
+duplicate deliveries are safe. Test locally with `stripe listen --forward-to
+localhost:8787/api/webhook` and `stripe trigger payment_intent.succeeded`.
+
 ## Test users
 
 `mike` / `mike123` (admin) and `liliya` / `liliya123` (associate) — seeded on

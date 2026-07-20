@@ -2,10 +2,45 @@ import express, { type Request } from 'express'
 import cors from 'cors'
 import { db, uid, audit } from './db.js'
 import { requireAuth, signToken, hashPassword, verifyPassword, type Claims } from './auth.js'
-import { createPaymentIntent } from './stripe.js'
+import { createPaymentIntent, constructWebhookEvent } from './stripe.js'
 
 const app = express()
 app.use(cors({ origin: process.env.CLIENT_ORIGIN ?? '*' }))
+
+/* ---------- Stripe webhook (raw body, before the JSON parser) ----------
+ * Stripe posts here when a payment settles; the signature is verified against
+ * the raw bytes, so this route must NOT go through express.json(). On a
+ * successful PaymentIntent we advance the linked order to "approved" and record
+ * the payment. Idempotent — Stripe may deliver an event more than once. */
+app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature']
+  if (!sig || typeof sig !== 'string') { res.status(400).json({ error: 'missing stripe-signature' }); return }
+  let event
+  try {
+    event = await constructWebhookEvent(req.body as Buffer, sig)
+  } catch (e) {
+    res.status(400).json({ error: `signature verification failed: ${(e as Error).message}` }); return
+  }
+
+  if (event.type === 'payment_intent.succeeded') {
+    const pi = event.data.object as { id?: string; amount_received?: number; amount?: number; metadata?: Record<string, string> }
+    const orderId = pi.metadata?.order_id
+    const tenantId = pi.metadata?.tenant_id
+    const amount = pi.amount_received ?? pi.amount ?? 0
+    if (orderId && orderId !== 'quote' && orderId !== 'adhoc') {
+      const info = db.prepare(
+        `UPDATE orders SET stage = 'approved', approved_at = COALESCE(approved_at, datetime('now')),
+         stripe_payment_intent = ?, deposit_cents = ? WHERE id = ? AND stage IN ('designed','approved')`
+      ).run(pi.id ?? null, amount, orderId)
+      if (info.changes && tenantId) audit(tenantId, null, 'order.paid', orderId, { amount, payment_intent: pi.id })
+    } else if (tenantId) {
+      audit(tenantId, null, 'payment.received', null, { amount, payment_intent: pi.id })
+    }
+  }
+
+  res.json({ received: true })
+})
+
 app.use(express.json({ limit: '2mb' }))
 
 const me = (req: Request) => (req as Request & { user: Claims }).user
@@ -116,9 +151,17 @@ app.patch('/api/orders/:id/stage', requireAuth, (req, res) => {
 
 app.post('/api/checkout', requireAuth, async (req, res) => {
   try {
-    const { amount_cents, order_id } = req.body ?? {}
-    const pi = await createPaymentIntent(Number(amount_cents), { order_id: String(order_id), tenant_id: me(req).tenant_id })
-    res.json({ clientSecret: pi.client_secret })
+    const { amount_cents, order_id, design_id } = req.body ?? {}
+    // Bind the payment to a real order so the webhook can advance it. If none was
+    // supplied, open one from the design so the shop has a record to track.
+    let oid = order_id as string | undefined
+    if ((!oid || oid === 'quote' || oid === 'adhoc') && design_id) {
+      oid = uid()
+      db.prepare('INSERT INTO orders (id, tenant_id, design_id, balance_cents) VALUES (?,?,?,?)')
+        .run(oid, me(req).tenant_id, String(design_id), Number(amount_cents) || 0)
+    }
+    const pi = await createPaymentIntent(Number(amount_cents), { order_id: String(oid ?? 'adhoc'), tenant_id: me(req).tenant_id })
+    res.json({ clientSecret: pi.client_secret, order_id: oid ?? null })
   } catch (e) {
     res.status(501).json({ error: (e as Error).message })
   }
