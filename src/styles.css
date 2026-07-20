@@ -263,6 +263,20 @@ table.cmp.variants td,table.cmp.variants th{white-space:nowrap}
 .opt.primary:disabled{opacity:.4;cursor:not-allowed}
 @media (max-width:640px){.sketch-body{grid-template-columns:1fr}.sketch-canvas{border-right:none;border-bottom:1px solid var(--rule-dark)}}
 
+/* onboarding tour */
+.tour-body{padding:20px 24px;display:flex;flex-direction:column;gap:18px}
+.tour-body>p{margin:0;font-size:14px;line-height:1.6;color:#C4CBCE}
+.tour-dots{display:flex;gap:7px;justify-content:center}
+.tour-dots i{width:7px;height:7px;border-radius:50%;background:var(--rule-dark);transition:background .2s}
+.tour-dots i.on{background:var(--karat)}
+.tour-nav{display:flex;justify-content:space-between;align-items:center}
+.tour-nav-r{display:flex;gap:8px}
+.tour-nav .ghost{background:none;border:none;color:#7A8386;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.tour-nav .ghost:hover{color:#C4CBCE}
+.tour-nav .opt{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:8px 14px;background:none;color:#C4CBCE;border:1px solid var(--rule-dark);cursor:pointer}
+.tour-nav .primary{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:8px 18px;background:var(--karat);color:#141414;border:1px solid var(--karat);cursor:pointer}
+.tour-nav .primary:hover{background:var(--karat-lt)}
+
 /* production */
 .mfg-sum{margin-left:auto;display:flex;gap:8px;font-family:var(--mono);font-size:9px;letter-spacing:.04em}
 .mfg-sum b{font-weight:700}

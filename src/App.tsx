@@ -12,6 +12,7 @@ import { LibraryPanel } from './ui/LibraryPanel'
 import { ProjectsPanel } from './ui/ProjectsPanel'
 import { ModelerPanel } from './ui/ModelerPanel'
 import { MetalGenerator } from './ui/MetalGenerator'
+import { Tour } from './ui/Tour'
 import { useDesign } from './state/design'
 import { useModeler } from './state/modeler'
 import { useAuth } from './state/auth'
@@ -25,7 +26,7 @@ import { shareUrl, specFromUrl } from './lib/share'
 
 type Mode = 'design' | 'model'
 
-function Masthead({ mode, setMode, onLab }: { mode: Mode; setMode: (m: Mode) => void; onLab: () => void }) {
+function Masthead({ mode, setMode, onLab, onTour }: { mode: Mode; setMode: (m: Mode) => void; onLab: () => void; onTour: () => void }) {
   const spec = useDesign(s => s.spec)
   const reset = useDesign(s => s.reset)
   const shop = useDesign(s => s.shop)
@@ -61,6 +62,7 @@ function Masthead({ mode, setMode, onLab }: { mode: Mode; setMode: (m: Mode) => 
           <span className="tag">Free-form CSG modeler</span>
         )}
         <button className="mast-lab" onClick={onLab}>Metal Lab</button>
+        <button className="mast-lab" onClick={onTour} title="Show the tour" aria-label="Show the tour">?</button>
         {mode === 'design' && (
           <>
             <button className="mast-reset" disabled={!canUndo} onClick={undo} title="Undo (Ctrl/⌘+Z)">↶</button>
@@ -74,11 +76,15 @@ function Masthead({ mode, setMode, onLab }: { mode: Mode; setMode: (m: Mode) => 
   )
 }
 
+const TOUR_KEY = 'blue-flame.tour.v1'
+
 export default function App() {
   const [labOpen, setLabOpen] = useState(false)
+  const [tourOpen, setTourOpen] = useState(() => { try { return !localStorage.getItem(TOUR_KEY) } catch { return false } })
   const mode = useWorkspace(s => s.mode)
   const setMode = useWorkspace(s => s.setMode)
   const load = useDesign(s => s.load)
+  const closeTour = () => { try { localStorage.setItem(TOUR_KEY, '1') } catch { /* private mode */ } setTourOpen(false) }
 
   // Restore on load: a shared ?d= link wins; otherwise the autosaved design and
   // sculpt come back exactly as they were left. History starts clean.
@@ -101,7 +107,7 @@ export default function App() {
 
   return (
     <>
-      <Masthead mode={mode} setMode={setMode} onLab={() => setLabOpen(true)} />
+      <Masthead mode={mode} setMode={setMode} onLab={() => setLabOpen(true)} onTour={() => setTourOpen(true)} />
       <div className="app">
         {mode === 'design' ? (
           <>
@@ -132,6 +138,7 @@ export default function App() {
         )}
       </div>
       <MetalGenerator open={labOpen} onClose={() => setLabOpen(false)} />
+      {tourOpen && <Tour onClose={closeTour} />}
     </>
   )
 }
