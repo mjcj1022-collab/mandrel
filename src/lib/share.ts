@@ -32,3 +32,18 @@ export function specFromUrl(): DesignSpec | null {
   const token = new URLSearchParams(location.search).get('d')
   return token ? decodeSpec(token) : null
 }
+
+/** A no-login, read-only client-approval link: the design plus the shop name. */
+export function reviewUrl(spec: DesignSpec, shop: string): string {
+  const base = typeof location !== 'undefined' ? `${location.origin}${location.pathname}` : ''
+  return `${base}?review=${encodeSpec(spec)}&shop=${encodeURIComponent(shop)}`
+}
+
+export function reviewFromUrl(): { spec: DesignSpec; shop: string } | null {
+  if (typeof location === 'undefined') return null
+  const params = new URLSearchParams(location.search)
+  const token = params.get('review')
+  if (!token) return null
+  const spec = decodeSpec(token)
+  return spec ? { spec, shop: params.get('shop') || 'Blue Flame' } : null
+}

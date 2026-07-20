@@ -1,16 +1,19 @@
+import { useState } from 'react'
 import { useDesign } from '../state/design'
-import { shareUrl } from '../lib/share'
+import { reviewUrl } from '../lib/share'
 
 const STAGES = ['Designed', 'Approved', 'Cast', 'Set', 'Finished', 'QC', 'Shipped']
 
 /** Order status tracker — the client-visible pipeline for a piece. */
 export function OrderPanel() {
   const spec = useDesign(s => s.spec)
+  const shop = useDesign(s => s.shop)
   const stage = useDesign(s => s.orderStage)
   const setStage = useDesign(s => s.setOrderStage)
+  const [copied, setCopied] = useState(false)
 
   const sendForApproval = async () => {
-    try { await navigator.clipboard.writeText(shareUrl(spec)) } catch { /* clipboard blocked */ }
+    try { await navigator.clipboard.writeText(reviewUrl(spec, shop.name)); setCopied(true); setTimeout(() => setCopied(false), 2500) } catch { /* clipboard blocked */ }
   }
 
   return (
@@ -28,7 +31,7 @@ export function OrderPanel() {
         <button className="opt" disabled={stage === STAGES.length - 1} onClick={() => setStage(stage + 1)}>Advance</button>
       </div>
       {stage === 0 && (
-        <button className="opt" style={{ width: '100%', marginTop: 8 }} onClick={sendForApproval}>Copy approval link for client</button>
+        <button className="opt" style={{ width: '100%', marginTop: 8 }} onClick={sendForApproval}>{copied ? 'Approval link copied ✓' : 'Copy approval link for client'}</button>
       )}
       <p className="disc">Send the client a no-login link to review and sign off before anything is cast. Advance the stage as the piece moves through the shop.</p>
     </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { encodeSpec, decodeSpec } from '../lib/share'
+import { encodeSpec, decodeSpec, reviewUrl } from '../lib/share'
 import { DEFAULT_SPEC, type DesignSpec } from '../spec/types'
 
 describe('share links', () => {
@@ -13,5 +13,11 @@ describe('share links', () => {
   it('rejects a malformed token', () => {
     expect(decodeSpec('not-a-real-token!!')).toBeNull()
     expect(decodeSpec('')).toBeNull()
+  })
+  it('builds a review link carrying the spec and the shop name', () => {
+    const url = reviewUrl(DEFAULT_SPEC, 'Aurora & Co')
+    const params = new URLSearchParams(url.split('?')[1])
+    expect(decodeSpec(params.get('review')!)).toEqual(DEFAULT_SPEC)
+    expect(params.get('shop')).toBe('Aurora & Co')
   })
 })
