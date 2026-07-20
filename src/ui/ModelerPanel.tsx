@@ -28,14 +28,15 @@ function Slider({ label, value, min, max, step, unit, on }: { label: string; val
 }
 
 function ParamControls({ sel }: { sel: SculptObject }) {
-  const { updateParams, setObjectSketch, setSketching } = useModeler()
+  const { updateParams, setObjectSketch, setSketching, setEditMode, select } = useModeler()
   const p = sel.params ?? {}
   if (sel.kind === 'sketch' && p.sketch) {
     const sk = p.sketch
     return (
       <>
-        <div className="opts" style={{ marginTop: 12 }}>
+        <div className="opts c2" style={{ marginTop: 12 }}>
           <button className="opt tpl" onClick={() => setSketching(true, sel.id)}>Edit profile ✎</button>
+          <button className="opt tpl" onClick={() => { select(sel.id); setEditMode('vertex') }}>Drag 3D nodes</button>
         </div>
         {sk.mode === 'extrude'
           ? <Slider label="Depth" value={sk.depth} min={0.6} max={12} step={0.2} unit=" mm" on={v => setObjectSketch(sel.id, { ...sk, depth: v })} />
@@ -214,7 +215,7 @@ export function ModelerPanel() {
               <input type="checkbox" checked={symmetry} onChange={toggleSymmetry} />
               Mirror-X symmetry<small>sculpt both sides at once</small>
             </label>
-            <p className="disc">Select an <b>editable mesh</b>, click a point on it, then drag the gizmo. Nearby vertices follow within the region radius. Convert a part with <b>Make editable</b> below.</p>
+            <p className="disc">On a <b>sketch</b>, drag its profile nodes to reshape it live. On an <b>editable mesh</b>, click a point and drag the gizmo — nearby vertices follow within the region radius. Convert a part with <b>Make editable</b> below.</p>
           </>
         ) : (
           <>
