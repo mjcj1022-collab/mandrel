@@ -141,6 +141,10 @@ function geomFromVertices(vertices: number[]): THREE.BufferGeometry {
 
 function baseGeometry(o: SculptObject): THREE.BufferGeometry {
   if (o.kind === 'mesh' && o.vertices) return geomFromVertices(o.vertices)
+  if (o.kind === 'sketch' && o.params?.sketch) {
+    const sk = o.params.sketch
+    return geomFromVertices(sketchToVertices(sk.points, sk.mode, sk.depth, sk.segments))
+  }
   if (JEWELRY.has(o.kind)) return jewelryGeometry(o.kind, o.params ?? {})
   return primitiveGeometry(o.kind as PrimitiveKind, o.size)
 }

@@ -9,7 +9,6 @@ import { ALLOYS, SHAPES, STONES, alloyById, shapeById, stoneMm } from '../catalo
 import { MARKET } from '../lib/market'
 import { useDesign } from '../state/design'
 import { money } from '../lib/units'
-import { SketchPad } from './SketchPad'
 
 const DEG = 180 / Math.PI
 const round1 = (n: number) => Math.round(n * 10) / 10
@@ -29,8 +28,21 @@ function Slider({ label, value, min, max, step, unit, on }: { label: string; val
 }
 
 function ParamControls({ sel }: { sel: SculptObject }) {
-  const { updateParams } = useModeler()
+  const { updateParams, setObjectSketch, setSketching } = useModeler()
   const p = sel.params ?? {}
+  if (sel.kind === 'sketch' && p.sketch) {
+    const sk = p.sketch
+    return (
+      <>
+        <div className="opts" style={{ marginTop: 12 }}>
+          <button className="opt tpl" onClick={() => setSketching(true, sel.id)}>Edit profile ✎</button>
+        </div>
+        {sk.mode === 'extrude'
+          ? <Slider label="Depth" value={sk.depth} min={0.6} max={12} step={0.2} unit=" mm" on={v => setObjectSketch(sel.id, { ...sk, depth: v })} />
+          : <Slider label="Sides" value={sk.segments} min={8} max={96} step={1} unit="" on={v => setObjectSketch(sel.id, { ...sk, segments: Math.round(v) })} />}
+      </>
+    )
+  }
   if (sel.kind === 'shank') return (
     <>
       <Slider label="Ring size" value={p.ringSize ?? 7} min={3} max={13} step={0.25} unit="" on={v => updateParams(sel.id, { ringSize: v })} />
@@ -73,14 +85,13 @@ function ParamControls({ sel }: { sel: SculptObject }) {
 }
 
 export function ModelerPanel() {
-  const { objects, selectedId, mode, editMode, falloff, symmetry, alloyId, snap, past, future, undo, redo, add, addMesh, update, remove, duplicate, arrayCircular, arrayLinear, mirror, centerObject, toggleSnap, toggleSymmetry, bakeToMesh, subdivideMesh, smoothMesh, fuseMetal, setEditMode, setFalloff, select, setMode, setAlloy, clear, load } = useModeler()
+  const { objects, selectedId, mode, editMode, falloff, symmetry, alloyId, snap, sketching, past, future, undo, redo, add, addMesh, update, remove, duplicate, arrayCircular, arrayLinear, mirror, centerObject, toggleSnap, toggleSymmetry, bakeToMesh, subdivideMesh, smoothMesh, fuseMetal, setSketching, setEditMode, setFalloff, select, setMode, setAlloy, clear, load } = useModeler()
   const sel = objects.find(o => o.id === selectedId) ?? null
   const dims = sel ? boundingSize(sel) : [0, 0, 0]
   const others = objects.filter(o => o.id !== selectedId)
   const [otherId, setOtherId] = useState('')
   const [seatTarget, setSeatTarget] = useState('')
   const [count, setCount] = useState(8)
-  const [sketchOpen, setSketchOpen] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [saved, setSaved] = useState<SavedSculpt[]>(() => sculptLibrary.list())
   const [dfm, setDfm] = useState<{ id: string; r: DfmReport } | null>(null)
@@ -171,7 +182,7 @@ export function ModelerPanel() {
           {PRIMS.map(([k, label]) => <button key={k} className="opt" onClick={() => add(k)}>{label}</button>)}
         </div>
         <h4 style={{ marginTop: 18 }}>Free draw</h4>
-        <div className="opts"><button className="opt tpl" onClick={() => setSketchOpen(true)}>Sketch a shape…</button></div>
+        <div className="opts"><button className="opt tpl" aria-pressed={sketching} onClick={() => setSketching(!sketching)}>{sketching ? 'Sketching… (drawing on stage)' : 'Sketch a shape…'}</button></div>
 
         <h4 style={{ marginTop: 18 }}>Edit mode</h4>
         <div className="opts c2">
@@ -288,7 +299,7 @@ export function ModelerPanel() {
             </div>
           )}
 
-          {!['shank', 'gem', 'head', 'bezel'].includes(sel.kind) && sel.kind !== 'mesh' && (
+          {!['shank', 'gem', 'head', 'bezel'].includes(sel.kind) && sel.kind !== 'mesh' && sel.kind !== 'sketch' && (
             <Slider label="Size" value={sel.size} min={1} max={30} step={0.5} unit="" on={v => update(sel.id, { size: v })} />
           )}
           <Slider label="Height" value={sel.position[1]} min={-10} max={30} step={0.5} unit="" on={v => update(sel.id, { position: [sel.position[0], v, sel.position[2]] })} />
@@ -375,8 +386,6 @@ export function ModelerPanel() {
         {metalCount >= 2 && <p className="disc">Fuse unions all {metalCount} metal parts into one watertight solid for printing (gems untouched).</p>}
         {msg && <p className="disc">{msg}</p>}
       </div>
-
-      {sketchOpen && <SketchPad onClose={() => setSketchOpen(false)} />}
     </>
   )
 }

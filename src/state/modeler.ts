@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { bakedVertices, subdivideSoup, smoothSoup, booleanOp } from '../lib/sculpt'
+import { bakedVertices, subdivideSoup, smoothSoup, booleanOp, type SketchMode } from '../lib/sculpt'
 
 export type PrimitiveKind = 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'tube'
 export type JewelryKind = 'shank' | 'gem' | 'head' | 'bezel'
@@ -9,7 +9,15 @@ export type TransformMode = 'translate' | 'rotate' | 'scale'
 export type EditMode = 'object' | 'vertex'
 export type ShankProfile = 'round' | 'flat' | 'dshape' | 'knife' | 'comfort'
 
-/** Parameters for the jewelry-native builders. */
+/** A free-drawn profile that stays editable — geometry is regenerated from it. */
+export interface SketchDef {
+  points: [number, number][]   // mm, profile outline
+  mode: SketchMode             // revolve (around Y) or extrude (along Z)
+  depth: number                // extrude depth, mm
+  segments: number             // revolve resolution
+}
+
+/** Parameters for the jewelry-native builders and the free-draw sketch. */
 export interface SculptParams {
   ringSize?: number       // shank — US size
   profile?: ShankProfile  // shank
@@ -22,11 +30,12 @@ export interface SculptParams {
   stoneW?: number         // head / bezel — stone width mm
   height?: number         // head / bezel — mm
   wall?: number           // bezel wall — mm
+  sketch?: SketchDef      // 'sketch' — a live, re-editable free-draw profile
 }
 
 export interface SculptObject {
   id: string
-  kind: SculptKind | 'mesh'
+  kind: SculptKind | 'mesh' | 'sketch'
   name: string
   position: [number, number, number]
   rotation: [number, number, number]   // radians
@@ -96,6 +105,11 @@ interface ModelerStore {
   toggleSnap: () => void
   mirror: (id: string) => void
   centerObject: (id: string) => void
+  sketching: boolean
+  sketchEditId: string | null
+  setSketching: (on: boolean, editId?: string | null) => void
+  addSketch: (sketch: SketchDef) => string
+  setObjectSketch: (id: string, sketch: SketchDef) => void
   add: (kind: SculptKind) => void
   addPart: (kind: SculptKind, params: Partial<SculptParams>, name?: string) => void
   addObjects: (objs: Array<Omit<SculptObject, 'id' | 'name'> & { name?: string }>) => void
@@ -129,6 +143,8 @@ export const useModeler = create<ModelerStore>((set, get) => {
   alloyId: '14ky',
   snap: false,
   symmetry: false,
+  sketching: false,
+  sketchEditId: null,
   past: [],
   future: [],
 
@@ -211,6 +227,25 @@ export const useModeler = create<ModelerStore>((set, get) => {
     const obj: SculptObject = { id: newId(), kind, name: name ?? `${LABEL[kind as SculptKind]} ${n}`, rotation: [0, 0, 0], scale: [1, 1, 1], ...d, params: { ...d.params, ...params } }
     set(s => ({ objects: [...s.objects, obj], selectedId: obj.id }))
   },
+
+  setSketching: (sketching, editId = null) => set({ sketching, sketchEditId: sketching ? editId : null }),
+
+  /** Create a live, re-editable sketch object from a free-drawn profile. */
+  addSketch: sketch => {
+    record()
+    const id = newId()
+    const n = get().objects.filter(o => o.kind === 'sketch').length + 1
+    const obj: SculptObject = {
+      id, kind: 'sketch', name: `Sketch ${n}`,
+      position: [0, sketch.mode === 'extrude' ? 6 : 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
+      size: 0, material: 'metal', color: GOLD, params: { sketch }
+    }
+    set(s => ({ objects: [...s.objects, obj], selectedId: id }))
+    return id
+  },
+
+  /** Live-update a sketch object's profile (no history entry — used while drawing). */
+  setObjectSketch: (id, sketch) => set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, params: { ...o.params, sketch } } : o) })),
 
   /** Add several parts at once (e.g. a full ring assembly) in one history step. */
   addObjects: objs => {

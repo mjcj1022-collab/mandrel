@@ -5,10 +5,12 @@ import * as THREE from 'three'
 import { useModeler } from '../state/modeler'
 import { SculptMesh } from './SculptMesh'
 import { ObjectListOverlay } from '../ui/ObjectListOverlay'
+import { SketchDock } from '../ui/SketchPad'
 
 export function ModelerScene() {
   const objects = useModeler(s => s.objects)
   const select = useModeler(s => s.select)
+  const sketching = useModeler(s => s.sketching)
 
   return (
     <div className="stage">
@@ -38,6 +40,7 @@ export function ModelerScene() {
       </Canvas>
 
       <ObjectListOverlay />
+      {sketching && <SketchDock />}
 
       {objects.length === 0 && (
         <div className="modeler-empty">
