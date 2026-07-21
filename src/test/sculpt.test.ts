@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { primitiveGeometry, booleanOp, modelerToStl, renderGeometry, bakedGeometry, meshVolume, sculptMetalVolume, boundingSize } from '../lib/sculpt'
+import { primitiveGeometry, booleanOp, modelerToStl, renderGeometry, bakedGeometry, meshVolume, sculptMetalVolume, boundingSize, editSketchPoint } from '../lib/sculpt'
 import type { SculptObject, PrimitiveKind } from '../state/modeler'
 
 const obj = (over: Partial<SculptObject> & { kind: SculptObject['kind'] }): SculptObject => ({
@@ -20,6 +20,27 @@ describe('sculpt geometry', () => {
     const stl = modelerToStl([obj({ kind: 'box' }), obj({ kind: 'sphere', position: [10, 0, 0] })])
     expect(stl.startsWith('solid')).toBe(true)
     expect(stl).toContain('facet normal')
+  })
+})
+
+describe('editSketchPoint (type-in a node dimension)', () => {
+  const pts: [number, number][] = [[2, 0], [5, 4], [3, 8]]
+
+  it('sets a revolve point to the typed radius/height', () => {
+    const out = editSketchPoint(pts, 1, 'revolve', 9, 6)
+    expect(out[1]).toEqual([9, 6])
+    expect(out[0]).toBe(pts[0])          // other points untouched (same ref)
+    expect(pts[1]).toEqual([5, 4])       // original not mutated
+  })
+  it('clamps a negative revolve radius to 0 (distance from the axis)', () => {
+    expect(editSketchPoint(pts, 0, 'revolve', -4, 3)[0]).toEqual([0, 3])
+  })
+  it('allows negative coordinates in extrude mode', () => {
+    expect(editSketchPoint(pts, 2, 'extrude', -1.5, -2)[2]).toEqual([-1.5, -2])
+  })
+  it('ignores non-finite input and out-of-range index (returns same array)', () => {
+    expect(editSketchPoint(pts, 1, 'revolve', NaN, 6)).toBe(pts)
+    expect(editSketchPoint(pts, 9, 'revolve', 1, 2)).toBe(pts)
   })
 })
 

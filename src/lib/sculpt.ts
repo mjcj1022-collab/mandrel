@@ -174,6 +174,19 @@ export function bakedVertices(o: SculptObject): number[] {
 export type SketchMode = 'revolve' | 'extrude'
 
 /**
+ * Set profile point `i` to a typed value (mm). Revolve clamps the radius to ≥0
+ * (it's a distance from the spin axis); extrude allows negative x/y. Non-finite
+ * input leaves the profile unchanged. Returns a new array; others are untouched.
+ */
+export function editSketchPoint(
+  points: [number, number][], i: number, mode: SketchMode, a: number, b: number
+): [number, number][] {
+  if (!Number.isFinite(a) || !Number.isFinite(b) || i < 0 || i >= points.length) return points
+  return points.map((pt, j): [number, number] =>
+    j !== i ? pt : mode === 'revolve' ? [Math.max(0, a), b] : [a, b])
+}
+
+/**
  * Turn a hand-drawn 2D profile (points in mm) into mesh vertices.
  * - revolve: spin the profile around the Y axis (x = radius ≥ 0, y = height).
  * - extrude: treat the points as a closed outline in XY, extruded along Z.

@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
 import * as THREE from 'three'
 import { TransformControls, Edges, Html } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useModeler, type SculptObject } from '../state/modeler'
-import { renderGeometry, objectMatrix } from '../lib/sculpt'
+import { renderGeometry, objectMatrix, editSketchPoint } from '../lib/sculpt'
 
 /**
  * Drag a sketch's profile control points directly in the 3D render. Each node
@@ -26,24 +26,74 @@ export function SketchNodeEditor({ o }: { o: SculptObject }) {
 
   const [pick, setPick] = useState<number | null>(null)
   const [pickKey, setPickKey] = useState(0)
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+  const [draft, setDraft] = useState<[string, string]>(['', ''])
   const handleRef = useRef<THREE.Mesh>(null)
 
   const grab = (i: number) => (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); setPick(i); setPickKey(k => k + 1) }
 
+  // The two axis labels for a profile point, by mode.
+  const axes: [string, string] = sk.mode === 'revolve' ? ['r', 'h'] : ['x', 'y']
   // Live mm readout for a profile point: radius·height (revolve) or x·y (extrude).
   const readout = (p: [number, number]) =>
     sk.mode === 'revolve'
       ? `r ${p[0].toFixed(1)} · h ${p[1].toFixed(1)}`
       : `${p[0].toFixed(1)} · ${p[1].toFixed(1)}`
-  const nodeLabel = (p: [number, number], active: boolean) => (
+
+  const startEdit = (i: number) => (e: ReactMouseEvent) => {
+    e.stopPropagation()
+    const p = sk.points[i]
+    setDraft([p[0].toFixed(1), p[1].toFixed(1)])
+    setPick(i); setPickKey(k => k + 1); setEditIdx(i)
+  }
+  const commitEdit = (i: number) => {
+    const np = editSketchPoint(sk.points, i, sk.mode, parseFloat(draft[0]), parseFloat(draft[1]))
+    if (np !== sk.points) setObjectSketch(o.id, { ...sk, points: np })
+    setEditIdx(null)
+  }
+
+  const pillStyle: CSSProperties = {
+    transform: 'translateY(-14px)', whiteSpace: 'nowrap',
+    font: '600 10px ui-monospace, monospace', fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '0.02em', padding: '1px 5px', borderRadius: 4,
+    background: 'rgba(12,14,17,0.82)', border: '1px solid rgba(255,255,255,0.08)',
+  }
+  const inputStyle: CSSProperties = {
+    width: 34, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(231,201,137,0.5)',
+    borderRadius: 3, color: '#E7C989', font: '600 10px ui-monospace, monospace',
+    fontVariantNumeric: 'tabular-nums', textAlign: 'right', padding: '0 2px', outline: 'none',
+  }
+
+  const nodeLabel = (i: number, p: [number, number], active: boolean) => (
     <Html position={handleWorld(p)} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
-      <div style={{
-        transform: 'translateY(-14px)', whiteSpace: 'nowrap',
-        font: '600 10px ui-monospace, monospace', fontVariantNumeric: 'tabular-nums',
-        letterSpacing: '0.02em', padding: '1px 5px', borderRadius: 4,
-        background: 'rgba(12,14,17,0.82)', border: '1px solid rgba(255,255,255,0.08)',
-        color: active ? '#E7C989' : '#9BB4C6', opacity: active ? 1 : 0.85,
-      }}>{readout(p)} mm</div>
+      {editIdx === i ? (
+        <div
+          style={{ ...pillStyle, display: 'inline-flex', gap: 3, alignItems: 'center', pointerEvents: 'auto' }}
+          onPointerDown={e => e.stopPropagation()}
+          // Commit only when focus leaves the whole editor — not when tabbing
+          // between the two fields (which would close it after the first).
+          onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commitEdit(i) }}
+        >
+          {([0, 1] as const).map(k => (
+            <span key={k} style={{ display: 'inline-flex', gap: 2, alignItems: 'center', color: '#9BB4C6' }}>
+              {axes[k]}
+              <input
+                autoFocus={k === 0}
+                type="number" step={0.1} value={draft[k]} style={inputStyle}
+                onChange={e => setDraft(d => (k === 0 ? [e.target.value, d[1]] : [d[0], e.target.value]))}
+                onKeyDown={e => { if (e.key === 'Enter') commitEdit(i); else if (e.key === 'Escape') setEditIdx(null) }}
+              />
+            </span>
+          ))}
+          <span style={{ color: '#6b7580' }}>mm</span>
+        </div>
+      ) : (
+        <div
+          onClick={startEdit(i)}
+          title="Click to type an exact value"
+          style={{ ...pillStyle, cursor: 'text', pointerEvents: 'auto', color: active ? '#E7C989' : '#9BB4C6', opacity: active ? 1 : 0.85 }}
+        >{readout(p)} mm</div>
+      )}
     </Html>
   )
 
@@ -95,7 +145,7 @@ export function SketchNodeEditor({ o }: { o: SculptObject }) {
             <sphereGeometry args={[0.7, 14, 12]} />
             <meshBasicMaterial color="#9BB4C6" toneMapped={false} depthTest={false} depthWrite={false} />
           </mesh>
-          {nodeLabel(p, false)}
+          {nodeLabel(i, p, false)}
         </group>
       ))}
 
@@ -107,7 +157,7 @@ export function SketchNodeEditor({ o }: { o: SculptObject }) {
               <meshBasicMaterial color="#C6A265" toneMapped={false} depthTest={false} depthWrite={false} />
             </mesh>
           </TransformControls>
-          {nodeLabel(sk.points[pick], true)}
+          {nodeLabel(pick, sk.points[pick], true)}
         </>
       )}
     </>
