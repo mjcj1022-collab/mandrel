@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { TransformControls, Edges } from '@react-three/drei'
 import { useModeler, type SculptObject } from '../state/modeler'
@@ -22,11 +22,17 @@ function useSculptMaterial(o: SculptObject) {
 const snapTo = (v: number, step: number) => Math.round(v / step) * step
 
 export function SculptMesh({ o }: { o: SculptObject }) {
-  const { selectedId, select, mode, update, snap, editMode, sketching, sketchEditId } = useModeler()
+  const { selectedId, select, mode, update, snap, editMode, sketching, sketchEditId, bakeToMesh } = useModeler()
   const ref = useRef<THREE.Mesh>(null)
   const geom = useMemo(() => renderGeometry(o), [o.kind, o.size, o.vertices, JSON.stringify(o.params)])
   const material = useSculptMaterial(o)
   const selected = selectedId === o.id
+
+  // Entering Vertices mode on a template/primitive auto-converts it to an
+  // editable mesh, so its moveable vertices appear at once — no separate
+  // "Make editable" step. Sketches (their own node editor) and meshes are skipped.
+  const needsBake = selected && editMode === 'vertex' && o.kind !== 'mesh' && o.kind !== 'sketch'
+  useEffect(() => { if (needsBake) bakeToMesh(o.id) }, [needsBake, o.id, bakeToMesh])
 
   // A sketch always shows its draggable nodes when selected (Object or Vertices
   // mode) or while it's being drawn — a sketch is its nodes. In Object mode the

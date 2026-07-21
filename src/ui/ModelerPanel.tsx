@@ -188,7 +188,7 @@ function TextTool() {
 }
 
 export function ModelerPanel() {
-  const { objects, selectedId, mode, editMode, falloff, symmetry, surfaceOp, brush, alloyId, snap, sketching, past, future, undo, redo, add, addMesh, update, remove, duplicate, arrayCircular, arrayLinear, mirror, centerObject, toggleSnap, toggleSymmetry, bakeToMesh, subdivideMesh, smoothMesh, fuseMetal, setSketching, setEditMode, setFalloff, setSurfaceOp, setBrush, select, setMode, setAlloy, clear, load, sketchPresets, applySketchPreset, deleteSketchPreset } = useModeler()
+  const { objects, selectedId, mode, editMode, falloff, symmetry, surfaceOp, brush, alloyId, snap, sketching, past, future, undo, redo, add, addMesh, update, remove, duplicate, arrayCircular, arrayLinear, mirror, centerObject, toggleSnap, toggleSymmetry, subdivideMesh, smoothMesh, fuseMetal, setSketching, setEditMode, setFalloff, setSurfaceOp, setBrush, select, setMode, setAlloy, clear, load, sketchPresets, applySketchPreset, deleteSketchPreset } = useModeler()
   const sel = objects.find(o => o.id === selectedId) ?? null
   const dims = sel ? boundingSize(sel) : [0, 0, 0]
   const others = objects.filter(o => o.id !== selectedId)
@@ -332,7 +332,7 @@ export function ModelerPanel() {
               <input type="checkbox" checked={symmetry} onChange={toggleSymmetry} />
               Mirror-X symmetry<small>sculpt both sides at once</small>
             </label>
-            <p className="disc">On a <b>sketch</b>: drag a node to reshape, click the surface to add a node, right-click a node to delete. On an <b>editable mesh</b>: click a point and drag the gizmo — nearby vertices follow within the region radius. Convert a part with <b>Make editable</b>.</p>
+            <p className="disc">On a <b>sketch</b>: drag a node to reshape, click the surface to add a node, right-click a node to delete. On any <b>part</b> (shank, gem, primitive…): switching to <b>Vertices</b> makes it editable automatically — click a point and drag the gizmo; nearby vertices follow within the region radius.</p>
           </>
         ) : (
           <>
@@ -424,11 +424,13 @@ export function ModelerPanel() {
                 </div>
               )}
             </>
-          ) : (
+          ) : sel.kind !== 'sketch' ? (
             <div className="opts" style={{ marginTop: 12 }}>
-              <button className="opt tpl" onClick={() => { bakeToMesh(sel.id); setEditMode('vertex') }}>Make editable →</button>
+              <button className="opt tpl" aria-pressed={editMode === 'vertex'} onClick={() => { select(sel.id); setEditMode('vertex') }}>
+                {editMode === 'vertex' ? 'Editing vertices ✓' : 'Edit vertices →'}
+              </button>
             </div>
-          )}
+          ) : null}
 
           {!['shank', 'gem', 'head', 'bezel'].includes(sel.kind) && sel.kind !== 'mesh' && sel.kind !== 'sketch' && (
             <Slider label="Size" value={sel.size} min={1} max={30} step={0.5} unit="" on={v => update(sel.id, { size: v })} />
