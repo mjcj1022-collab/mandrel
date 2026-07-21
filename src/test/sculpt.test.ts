@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { primitiveGeometry, booleanOp, modelerToStl, renderGeometry, bakedGeometry, meshVolume, sculptMetalVolume, boundingSize, editSketchPoint, sketchSummary, profileDistance } from '../lib/sculpt'
+import { primitiveGeometry, booleanOp, modelerToStl, renderGeometry, bakedGeometry, meshVolume, sculptMetalVolume, boundingSize, editSketchPoint, sketchSummary, profileDistance, profileThinnest, MIN_SECTION_MM } from '../lib/sculpt'
 import type { SculptObject, PrimitiveKind } from '../state/modeler'
 
 const obj = (over: Partial<SculptObject> & { kind: SculptObject['kind'] }): SculptObject => ({
@@ -49,6 +49,31 @@ describe('profileDistance (measure tool)', () => {
     expect(profileDistance([0, 0], [3, 4])).toBe(5)
     expect(profileDistance([2, 1], [2, 1])).toBe(0)
     expect(profileDistance([1, 1], [1, 6])).toBe(5)
+  })
+})
+
+describe('profileThinnest (DFM section check)', () => {
+  it('extrude: catches a thin wall as the closed-outline self-approach', () => {
+    // 12mm-wide bar, 0.4mm thick → thinnest section is the 0.4mm wall
+    const bar: [number, number][] = [[-6, 0.2], [6, 0.2], [6, -0.2], [-6, -0.2]]
+    expect(profileThinnest(bar, 'extrude')).toBeCloseTo(0.4, 5)
+  })
+  it('extrude: a chunky outline is well above the cast minimum', () => {
+    const block: [number, number][] = [[-4, 4], [4, 4], [4, -4], [-4, -4]]
+    expect(profileThinnest(block, 'extrude')).toBeGreaterThan(MIN_SECTION_MM)
+  })
+  it('revolve: flags a thin turned stem (interior small radius → diameter 2r)', () => {
+    // waist pinches to r=0.3 → 0.6mm stem, below the 0.8mm minimum
+    const waist: [number, number][] = [[3, 0], [0.3, 5], [3, 10]]
+    expect(profileThinnest(waist, 'revolve')).toBeCloseTo(0.6, 5)
+    expect(profileThinnest(waist, 'revolve')).toBeLessThan(MIN_SECTION_MM)
+  })
+  it('revolve: a healthy dome clears the minimum', () => {
+    const dome: [number, number][] = [[0, 8], [4, 7.4], [7, 5.2], [8.4, 2.6], [8.8, 0]]
+    expect(profileThinnest(dome, 'revolve')).toBeGreaterThan(MIN_SECTION_MM)
+  })
+  it('is Infinity for a degenerate profile', () => {
+    expect(profileThinnest([[0, 0], [5, 0]], 'revolve')).toBe(Infinity)
   })
 })
 

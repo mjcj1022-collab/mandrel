@@ -191,6 +191,41 @@ export function profileDistance(a: [number, number], b: [number, number]): numbe
   return Math.hypot(a[0] - b[0], a[1] - b[1])
 }
 
+/** Distance from point p to segment a→b (mm). */
+function pointToSegment(p: [number, number], a: [number, number], b: [number, number]): number {
+  const abx = b[0] - a[0], aby = b[1] - a[1]
+  const len2 = abx * abx + aby * aby
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * abx + (p[1] - a[1]) * aby) / len2)) : 0
+  return Math.hypot(p[0] - (a[0] + t * abx), p[1] - (a[1] + t * aby))
+}
+
+/** Castable/printable minimum section for jewelry (mm). */
+export const MIN_SECTION_MM = 0.8
+
+/**
+ * Thinnest section of a profile (mm): the closest the outline folds toward
+ * itself (a thin wall), and for a revolve also the thinnest turned stem
+ * (interior diameter = 2·radius). Returns Infinity if there's nothing to check.
+ */
+export function profileThinnest(points: [number, number][], mode: SketchMode): number {
+  const n = points.length
+  if (n < 3) return mode === 'revolve' && n >= 1 ? Infinity : Infinity
+  const segs: [number, number][] = []
+  for (let i = 0; i < n - 1; i++) segs.push([i, i + 1])
+  if (mode === 'extrude') segs.push([n - 1, 0])   // extrude outline is a closed loop
+  let min = Infinity
+  for (let i = 0; i < n; i++) {
+    for (const [a, b] of segs) {
+      if (a === i || b === i) continue           // skip segments that touch this vertex
+      min = Math.min(min, pointToSegment(points[i], points[a], points[b]))
+    }
+  }
+  if (mode === 'revolve') {                        // thin turned stem near the axis
+    for (let i = 1; i < n - 1; i++) min = Math.min(min, 2 * Math.max(0, points[i][0]))
+  }
+  return min
+}
+
 export interface SketchSummary {
   mode: SketchMode
   nodes: number

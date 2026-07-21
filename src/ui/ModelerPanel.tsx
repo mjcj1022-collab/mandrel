@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useModeler, SCULPT_COLORS, type PrimitiveKind, type JewelryKind, type SculptMaterial, type SculptObject, type ShankProfile, type SketchDef } from '../state/modeler'
 import { profileThumb } from '../lib/sketchPresets'
-import { booleanOp, modelerToStl, sculptEstimate, sculptWarnings, boundingSize, sketchSummary, type BooleanOp } from '../lib/sculpt'
+import { booleanOp, modelerToStl, sculptEstimate, sculptWarnings, boundingSize, sketchSummary, profileThinnest, MIN_SECTION_MM, type BooleanOp } from '../lib/sculpt'
 import { sculptLibrary, type SavedSculpt } from '../lib/sculptLibrary'
 import { analyzeMesh, type DfmReport } from '../lib/dfm'
 import { sculptTechSheet } from '../lib/sculptDoc'
@@ -49,11 +49,22 @@ function ParamControls({ sel }: { sel: SculptObject }) {
     const envelope = sum.mode === 'revolve'
       ? `⌀ ${f(sum.diameter!)} × ${f(sum.height)} mm`
       : `${f(sum.width!)} × ${f(sum.height)} × ${f(sum.depth!)} mm`
+    const thin = profileThinnest(sk.points, sk.mode)
+    const thinOk = !Number.isFinite(thin) || thin >= MIN_SECTION_MM
     return (
       <>
         <div className="disc" style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
           <span>{envelope}</span><span style={{ opacity: 0.6 }}>{sum.nodes} nodes</span>
         </div>
+        {Number.isFinite(thin) && (
+          <div className="disc" style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <span>min section</span>
+            <span style={{ color: thinOk ? undefined : '#D98A5F', fontWeight: thinOk ? undefined : 700 }}>{thin.toFixed(2)} mm{thinOk ? '' : ' ⚠'}</span>
+          </div>
+        )}
+        {!thinOk && (
+          <div className="flag"><b>DFM · thin section</b>The profile's thinnest wall/spoke is {thin.toFixed(2)} mm — below the {MIN_SECTION_MM} mm cast/print minimum. Thicken it or the feature may not fill.</div>
+        )}
         <div className="opts c2" style={{ marginTop: 8 }}>
           <button className="opt tpl" onClick={() => setSketching(true, sel.id)}>Edit profile ✎</button>
           <button className="opt tpl" onClick={() => { select(sel.id); setEditMode('vertex') }}>Drag 3D nodes</button>
