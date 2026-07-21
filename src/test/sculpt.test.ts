@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { primitiveGeometry, booleanOp, modelerToStl, renderGeometry, bakedGeometry, meshVolume, sculptMetalVolume, boundingSize, editSketchPoint, sketchSummary, profileDistance, profileThinnest, MIN_SECTION_MM } from '../lib/sculpt'
+import { primitiveGeometry, booleanOp, modelerToStl, renderGeometry, bakedGeometry, meshVolume, sculptMetalVolume, boundingSize, editSketchPoint, sketchSummary, profileDistance, profileThinnest, MIN_SECTION_MM, sculptPull } from '../lib/sculpt'
 import type { SculptObject, PrimitiveKind } from '../state/modeler'
 
 const obj = (over: Partial<SculptObject> & { kind: SculptObject['kind'] }): SculptObject => ({
@@ -41,6 +41,37 @@ describe('editSketchPoint (type-in a node dimension)', () => {
   it('ignores non-finite input and out-of-range index (returns same array)', () => {
     expect(editSketchPoint(pts, 1, 'revolve', NaN, 6)).toBe(pts)
     expect(editSketchPoint(pts, 9, 'revolve', 1, 2)).toBe(pts)
+  })
+})
+
+describe('sculptPull (direct vertex manipulation)', () => {
+  it('moves the grabbed vertex (distance 0) by the full delta', () => {
+    const base = new Float32Array([0, 0, 0, 10, 0, 0, 0, 10, 0])
+    const out = sculptPull(base, [0, 0, 0], [2, 3, 4], 5, false, new Float32Array(9))
+    expect([out[0], out[1], out[2]]).toEqual([2, 3, 4])
+  })
+  it('leaves vertices at/beyond the region radius untouched', () => {
+    const base = new Float32Array([0, 0, 0, 10, 0, 0])   // second vert 10mm away, radius 5
+    const out = sculptPull(base, [0, 0, 0], [2, 3, 4], 5, false, new Float32Array(6))
+    expect([out[3], out[4], out[5]]).toEqual([10, 0, 0])
+  })
+  it('applies a partial pull to vertices inside the radius (smooth falloff)', () => {
+    const base = new Float32Array([0, 0, 0, 2.5, 0, 0])  // 2.5mm away, radius 5 → weight 0.5
+    const out = sculptPull(base, [0, 0, 0], [4, 0, 0], 5, false, new Float32Array(6))
+    expect(out[0]).toBe(4)                    // grabbed vertex: full
+    expect(out[3]).toBeCloseTo(2.5 + 4 * 0.5, 5)   // neighbour: half the pull
+  })
+  it('closer neighbours follow more than farther ones', () => {
+    const base = new Float32Array([0, 0, 0, 1, 0, 0, 3, 0, 0])
+    const out = sculptPull(base, [0, 0, 0], [0, 5, 0], 5, false, new Float32Array(9))
+    expect(out[4]).toBeGreaterThan(out[7])    // vert at 1mm rises more than vert at 3mm
+    expect(out[7]).toBeGreaterThan(0)
+  })
+  it('symmetry mirrors the pull across the X=0 plane', () => {
+    const base = new Float32Array([3, 0, 0, -3, 0, 0])   // grab (3,0,0); mirror at (-3,0,0)
+    const out = sculptPull(base, [3, 0, 0], [0, 2, 0], 4, true, new Float32Array(6))
+    expect(out[1]).toBe(2)    // grabbed vertex rises
+    expect(out[4]).toBe(2)    // mirrored vertex rises too
   })
 })
 

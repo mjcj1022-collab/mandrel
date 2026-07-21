@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { TransformControls, Edges } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useModeler, type SculptObject } from '../state/modeler'
+import { sculptPull } from '../lib/sculpt'
 
 /**
  * Direct vertex sculpting for a baked 'mesh'. Click anywhere on the surface to
@@ -61,22 +62,8 @@ export function VertexEditor({ o }: { o: SculptObject }) {
     const h = handleRef.current, base = baseRef.current
     if (!h || !base) return
     const c = centerRef.current
-    const dx = h.position.x - c.x, dy = h.position.y - c.y, dz = h.position.z - c.z
     const pos = geom.getAttribute('position') as THREE.BufferAttribute
-    const arr = pos.array as Float32Array
-    const r = falloff
-    const wt = (d: number) => { if (d >= r) return 0; const t = 1 - d / r; return t * t * (3 - 2 * t) }
-    for (let i = 0; i < pos.count; i++) {
-      const bx = base[i * 3], by = base[i * 3 + 1], bz = base[i * 3 + 2]
-      const w = wt(Math.hypot(bx - c.x, by - c.y, bz - c.z))
-      let nx = bx + dx * w, ny = by + dy * w, nz = bz + dz * w
-      if (symmetry) {
-        // Mirror the pull across the YZ plane (X = 0).
-        const w2 = wt(Math.hypot(bx + c.x, by - c.y, bz - c.z))
-        nx += -dx * w2; ny += dy * w2; nz += dz * w2
-      }
-      arr[i * 3] = nx; arr[i * 3 + 1] = ny; arr[i * 3 + 2] = nz
-    }
+    sculptPull(base, [c.x, c.y, c.z], [h.position.x - c.x, h.position.y - c.y, h.position.z - c.z], falloff, symmetry, pos.array as Float32Array)
     pos.needsUpdate = true
     geom.computeVertexNormals()
   }

@@ -191,6 +191,37 @@ export function profileDistance(a: [number, number], b: [number, number]): numbe
   return Math.hypot(a[0] - b[0], a[1] - b[1])
 }
 
+/**
+ * Proportional vertex pull for direct mesh sculpting. Moves each vertex of
+ * `base` (flat xyz) toward `delta`, weighted by a smooth-step falloff of its
+ * distance to `center`: the grabbed vertex (distance 0) gets the full delta,
+ * vertices at/after `radius` are untouched. With `symmetry`, the pull is also
+ * mirrored across the X=0 plane. Writes into `out` and returns it.
+ */
+export function sculptPull(
+  base: ArrayLike<number>,
+  center: readonly [number, number, number],
+  delta: readonly [number, number, number],
+  radius: number,
+  symmetry: boolean,
+  out: Float32Array,
+): Float32Array {
+  const [cx, cy, cz] = center
+  const [dx, dy, dz] = delta
+  const wt = (d: number) => { if (d >= radius) return 0; const t = 1 - d / radius; return t * t * (3 - 2 * t) }
+  for (let i = 0; i < base.length; i += 3) {
+    const bx = base[i], by = base[i + 1], bz = base[i + 2]
+    const w = wt(Math.hypot(bx - cx, by - cy, bz - cz))
+    let nx = bx + dx * w, ny = by + dy * w, nz = bz + dz * w
+    if (symmetry) {
+      const w2 = wt(Math.hypot(bx + cx, by - cy, bz - cz))
+      nx += -dx * w2; ny += dy * w2; nz += dz * w2
+    }
+    out[i] = nx; out[i + 1] = ny; out[i + 2] = nz
+  }
+  return out
+}
+
 /** Distance from point p to segment a→b (mm). */
 function pointToSegment(p: [number, number], a: [number, number], b: [number, number]): number {
   const abx = b[0] - a[0], aby = b[1] - a[1]
