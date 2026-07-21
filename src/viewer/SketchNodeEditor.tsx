@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { TransformControls, Edges } from '@react-three/drei'
+import { TransformControls, Edges, Html } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useModeler, type SculptObject } from '../state/modeler'
 import { renderGeometry, objectMatrix } from '../lib/sculpt'
@@ -29,6 +29,23 @@ export function SketchNodeEditor({ o }: { o: SculptObject }) {
   const handleRef = useRef<THREE.Mesh>(null)
 
   const grab = (i: number) => (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); setPick(i); setPickKey(k => k + 1) }
+
+  // Live mm readout for a profile point: radius·height (revolve) or x·y (extrude).
+  const readout = (p: [number, number]) =>
+    sk.mode === 'revolve'
+      ? `r ${p[0].toFixed(1)} · h ${p[1].toFixed(1)}`
+      : `${p[0].toFixed(1)} · ${p[1].toFixed(1)}`
+  const nodeLabel = (p: [number, number], active: boolean) => (
+    <Html position={handleWorld(p)} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
+      <div style={{
+        transform: 'translateY(-14px)', whiteSpace: 'nowrap',
+        font: '600 10px ui-monospace, monospace', fontVariantNumeric: 'tabular-nums',
+        letterSpacing: '0.02em', padding: '1px 5px', borderRadius: 4,
+        background: 'rgba(12,14,17,0.82)', border: '1px solid rgba(255,255,255,0.08)',
+        color: active ? '#E7C989' : '#9BB4C6', opacity: active ? 1 : 0.85,
+      }}>{readout(p)} mm</div>
+    </Html>
+  )
 
   const drag = () => {
     if (pick == null || !handleRef.current) return
@@ -73,19 +90,25 @@ export function SketchNodeEditor({ o }: { o: SculptObject }) {
       </mesh>
 
       {sk.points.map((p, i) => i === pick ? null : (
-        <mesh key={i} position={handleWorld(p)} onClick={grab(i)} onContextMenu={delNode(i)} renderOrder={10}>
-          <sphereGeometry args={[0.7, 14, 12]} />
-          <meshBasicMaterial color="#9BB4C6" toneMapped={false} depthTest={false} depthWrite={false} />
-        </mesh>
+        <group key={i}>
+          <mesh position={handleWorld(p)} onClick={grab(i)} onContextMenu={delNode(i)} renderOrder={10}>
+            <sphereGeometry args={[0.7, 14, 12]} />
+            <meshBasicMaterial color="#9BB4C6" toneMapped={false} depthTest={false} depthWrite={false} />
+          </mesh>
+          {nodeLabel(p, false)}
+        </group>
       ))}
 
       {pick != null && sk.points[pick] && (
-        <TransformControls key={pickKey} mode="translate" size={0.6} showZ={false} onObjectChange={drag} onMouseUp={drag}>
-          <mesh ref={handleRef} position={handleWorld(sk.points[pick])} onContextMenu={delNode(pick)} renderOrder={11}>
-            <sphereGeometry args={[0.8, 14, 12]} />
-            <meshBasicMaterial color="#C6A265" toneMapped={false} depthTest={false} depthWrite={false} />
-          </mesh>
-        </TransformControls>
+        <>
+          <TransformControls key={pickKey} mode="translate" size={0.6} showZ={false} onObjectChange={drag} onMouseUp={drag}>
+            <mesh ref={handleRef} position={handleWorld(sk.points[pick])} onContextMenu={delNode(pick)} renderOrder={11}>
+              <sphereGeometry args={[0.8, 14, 12]} />
+              <meshBasicMaterial color="#C6A265" toneMapped={false} depthTest={false} depthWrite={false} />
+            </mesh>
+          </TransformControls>
+          {nodeLabel(sk.points[pick], true)}
+        </>
       )}
     </>
   )
