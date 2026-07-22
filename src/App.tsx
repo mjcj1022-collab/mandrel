@@ -12,6 +12,7 @@ import { ProjectsPanel } from './ui/ProjectsPanel'
 import { ModelerPanel } from './ui/ModelerPanel'
 import { MetalGenerator } from './ui/MetalGenerator'
 import { Tour } from './ui/Tour'
+import { BackendStatus } from './ui/BackendStatus'
 import { useDesign } from './state/design'
 import { useModeler } from './state/modeler'
 import { useAuth } from './state/auth'
@@ -69,6 +70,7 @@ function Masthead({ mode, setMode, onLab, onTour }: { mode: Mode; setMode: (m: M
             <button className="mast-reset" onClick={reset}>Reset</button>
           </>
         )}
+        <BackendStatus />
         <span className="mast-user">{authUser}<button className="mast-signout" onClick={logout}>sign out</button></span>
       </div>
     </header>

@@ -6,6 +6,19 @@
 const BASE = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_URL
 
 export const apiConfigured = (): boolean => !!BASE
+export const apiBase = (): string | undefined => BASE
+
+/** Ping the backend's health endpoint. Never throws — returns false if the API
+ *  is unset, unreachable, or unhealthy. Used by the connection indicator. */
+export async function apiHealth(signal?: AbortSignal): Promise<boolean> {
+  if (!BASE) return false
+  try {
+    const res = await fetch(BASE + '/api/health', { signal })
+    if (!res.ok) return false
+    const body = await res.json().catch(() => null) as { ok?: boolean } | null
+    return body?.ok === true
+  } catch { return false }
+}
 
 let token: string | null = null
 export const setToken = (t: string | null): void => { token = t }
