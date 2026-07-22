@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { primitiveGeometry, booleanOp, modelerToStl, renderGeometry, bakedGeometry, meshVolume, sculptMetalVolume, boundingSize, editSketchPoint, sketchSummary, profileDistance, profileThinnest, MIN_SECTION_MM, sculptPull } from '../lib/sculpt'
+import { primitiveGeometry, booleanOp, modelerToStl, renderGeometry, bakedGeometry, meshVolume, sculptMetalVolume, boundingSize, editSketchPoint, sketchSummary, profileDistance, profileThinnest, MIN_SECTION_MM, sculptPull, loftVertices, resampleClosed } from '../lib/sculpt'
 import type { SculptObject, PrimitiveKind } from '../state/modeler'
 
 const obj = (over: Partial<SculptObject> & { kind: SculptObject['kind'] }): SculptObject => ({
@@ -41,6 +41,55 @@ describe('editSketchPoint (type-in a node dimension)', () => {
   it('ignores non-finite input and out-of-range index (returns same array)', () => {
     expect(editSketchPoint(pts, 1, 'revolve', NaN, 6)).toBe(pts)
     expect(editSketchPoint(pts, 9, 'revolve', 1, 2)).toBe(pts)
+  })
+})
+
+describe('resampleClosed', () => {
+  it('resamples to exactly n points around a closed polygon', () => {
+    const sq: [number, number][] = [[0, 0], [4, 0], [4, 4], [0, 4]]
+    expect(resampleClosed(sq, 12).length).toBe(12)
+    expect(resampleClosed(sq, 40).length).toBe(40)
+  })
+  it('handles degenerate input without NaN', () => {
+    for (const [x, y] of resampleClosed([[2, 3]], 8)) { expect(x).toBe(2); expect(y).toBe(3) }
+  })
+})
+
+describe('loftVertices (blend two profiles)', () => {
+  const A: [number, number][] = [[-3, -3], [3, -3], [3, 3], [-3, 3]]   // square
+  const B: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]]   // smaller square
+
+  it('builds watertight triangle geometry with the expected count', () => {
+    const sections = 16, n = 4
+    const v = loftVertices(A, B, 8, sections)
+    expect(v.length % 9).toBe(0)
+    // walls: sections·n·2 tris; caps: 2·n tris
+    const tris = sections * n * 2 + 2 * n
+    expect(v.length).toBe(tris * 9)
+  })
+  it('spans z from 0 to the loft length', () => {
+    const v = loftVertices(A, B, 10, 16)
+    let minZ = Infinity, maxZ = -Infinity
+    for (let i = 2; i < v.length; i += 3) { minZ = Math.min(minZ, v[i]); maxZ = Math.max(maxZ, v[i]) }
+    expect(minZ).toBeCloseTo(0, 5)
+    expect(maxZ).toBeCloseTo(10, 5)
+  })
+  it('the bottom matches profile A and the top matches profile B in extent', () => {
+    const v = loftVertices(A, B, 8, 16)
+    const spanAt = (zTarget: number) => {
+      let mn = Infinity, mx = -Infinity
+      for (let i = 0; i < v.length; i += 3) if (Math.abs(v[i + 2] - zTarget) < 1e-6) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
+      return mx - mn
+    }
+    expect(spanAt(0)).toBeCloseTo(6, 1)    // square A is 6 wide
+    expect(spanAt(8)).toBeCloseTo(2, 1)    // square B is 2 wide
+  })
+  it('resamples mismatched point counts to a common ring', () => {
+    const tri: [number, number][] = [[0, 0], [4, 0], [2, 4]]         // 3 pts
+    const hex: [number, number][] = [[0, 0], [2, 0], [3, 2], [2, 4], [0, 4], [-1, 2]]  // 6 pts
+    const v = loftVertices(tri, hex, 6, 8)
+    expect(v.length).toBeGreaterThan(0)
+    expect(v.length % 9).toBe(0)
   })
 })
 

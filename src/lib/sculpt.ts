@@ -191,6 +191,78 @@ export function profileDistance(a: [number, number], b: [number, number]): numbe
   return Math.hypot(a[0] - b[0], a[1] - b[1])
 }
 
+/** Resample a closed polygon to exactly `n` points, spaced evenly by arc length. */
+export function resampleClosed(pts: [number, number][], n: number): [number, number][] {
+  const m = pts.length
+  if (m === 0) return Array.from({ length: n }, () => [0, 0] as [number, number])
+  if (m === 1) return Array.from({ length: n }, () => [pts[0][0], pts[0][1]] as [number, number])
+  const seg: { a: [number, number]; b: [number, number]; len: number }[] = []
+  let total = 0
+  for (let i = 0; i < m; i++) {
+    const a = pts[i], b = pts[(i + 1) % m]
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+    seg.push({ a, b, len }); total += len
+  }
+  if (total === 0) return Array.from({ length: n }, () => [pts[0][0], pts[0][1]] as [number, number])
+  const step = total / n
+  const out: [number, number][] = []
+  let si = 0, acc = 0
+  for (let k = 0; k < n; k++) {
+    const d = k * step
+    while (si < seg.length - 1 && acc + seg[si].len < d) { acc += seg[si].len; si++ }
+    const s = seg[si], t = s.len > 0 ? (d - acc) / s.len : 0
+    out.push([s.a[0] + (s.b[0] - s.a[0]) * t, s.a[1] + (s.b[1] - s.a[1]) * t])
+  }
+  return out
+}
+
+/**
+ * Loft (blend) between two profiles: place profile A at z=0 and profile B at
+ * z=length, ease the cross-section from one to the other with a smooth-step,
+ * and skin the walls plus cap both ends into a watertight solid. Both profiles
+ * are resampled to a common point count so corresponding points connect.
+ */
+export function loftVertices(
+  profileA: [number, number][],
+  profileB: [number, number][],
+  length = 8,
+  sections = 16,
+): number[] {
+  const n = Math.max(profileA.length, profileB.length, 3)
+  const A = resampleClosed(profileA, n)
+  const B = resampleClosed(profileB, n)
+  const smooth = (t: number) => t * t * (3 - 2 * t)
+  const loops: [number, number, number][][] = []
+  for (let s = 0; s <= sections; s++) {
+    const t = s / sections, e = smooth(t), z = t * length
+    const loop: [number, number, number][] = []
+    for (let i = 0; i < n; i++) {
+      loop.push([A[i][0] + (B[i][0] - A[i][0]) * e, A[i][1] + (B[i][1] - A[i][1]) * e, z])
+    }
+    loops.push(loop)
+  }
+  const out: number[] = []
+  const tri = (p: number[], q: number[], r: number[]) => out.push(p[0], p[1], p[2], q[0], q[1], q[2], r[0], r[1], r[2])
+  for (let s = 0; s < sections; s++) {                 // skin the side walls
+    const lo = loops[s], hi = loops[s + 1]
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n
+      tri(lo[i], hi[i], hi[j]); tri(lo[i], hi[j], lo[j])
+    }
+  }
+  const cap = (loop: [number, number, number][], up: boolean) => {   // fan-triangulate an end
+    let cx = 0, cy = 0; const z = loop[0][2]
+    for (const p of loop) { cx += p[0]; cy += p[1] }
+    const c = [cx / n, cy / n, z]
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n
+      if (up) tri(c, loop[i], loop[j]); else tri(c, loop[j], loop[i])
+    }
+  }
+  cap(loops[0], false); cap(loops[sections], true)
+  return out
+}
+
 /**
  * Proportional vertex pull for direct mesh sculpting. Moves each vertex of
  * `base` (flat xyz) toward `delta`, weighted by a smooth-step falloff of its

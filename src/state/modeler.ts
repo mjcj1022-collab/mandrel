@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { bakedVertices, subdivideSoup, smoothSoup, booleanOp, strokeTubeVertices, positionTextVertices, type SketchMode } from '../lib/sculpt'
+import { bakedVertices, subdivideSoup, smoothSoup, booleanOp, strokeTubeVertices, positionTextVertices, loftVertices, type SketchMode } from '../lib/sculpt'
 import { textVertices, curvedTextVertices } from '../lib/text3d'
 import { bakedGeometry } from '../lib/sculpt'
 import { allPresets, addUserPreset, removeUserPreset, cloneSketch, type SketchPreset } from '../lib/sketchPresets'
@@ -124,6 +124,7 @@ interface ModelerStore {
   setSketching: (on: boolean, editId?: string | null) => void
   addSketch: (sketch: SketchDef) => string
   setObjectSketch: (id: string, sketch: SketchDef) => void
+  loftSketches: (idA: string, idB: string, length?: number) => string | null
   sketchPresets: SketchPreset[]
   saveSketchPreset: (name: string, sketch: SketchDef) => void
   applySketchPreset: (preset: SketchPreset) => string
@@ -336,6 +337,22 @@ export const useModeler = create<ModelerStore>((set, get) => {
 
   /** Live-update a sketch object's profile (no history entry — used while drawing). */
   setObjectSketch: (id, sketch) => set(s => ({ objects: s.objects.map(o => o.id === id ? { ...o, params: { ...o.params, sketch } } : o) })),
+
+  /** Loft (blend) two sketch profiles into one mesh; consumes both sources. */
+  loftSketches: (idA, idB, length = 8) => {
+    const a = get().objects.find(o => o.id === idA), b = get().objects.find(o => o.id === idB)
+    if (!a?.params?.sketch || !b?.params?.sketch) return null
+    const vertices = loftVertices(a.params.sketch.points, b.params.sketch.points, length)
+    if (!vertices.length) return null
+    record()
+    const id = newId()
+    const obj: SculptObject = {
+      id, kind: 'mesh', name: 'Loft', vertices,
+      position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], size: 0, material: 'metal', color: GOLD,
+    }
+    set(s => ({ objects: [...s.objects.filter(o => o.id !== idA && o.id !== idB), obj], selectedId: id }))
+    return id
+  },
 
   /** Saved profile presets: built-ins + the user's own (persisted to localStorage). */
   sketchPresets: allPresets(),

@@ -40,10 +40,12 @@ function Slider({ label, value, min, max, step, unit, on }: { label: string; val
 }
 
 function ParamControls({ sel }: { sel: SculptObject }) {
-  const { updateParams, setObjectSketch, setSketching, setEditMode, select, saveSketchPreset, measuring, toggleMeasuring } = useModeler()
+  const { updateParams, setObjectSketch, setSketching, setEditMode, select, saveSketchPreset, measuring, toggleMeasuring, objects, loftSketches } = useModeler()
+  const [loftId, setLoftId] = useState('')
   const p = sel.params ?? {}
   if (sel.kind === 'sketch' && p.sketch) {
     const sk = p.sketch
+    const otherSketches = objects.filter(o => o.kind === 'sketch' && o.id !== sel.id)
     const sum = sketchSummary(sk.points, sk.mode, sk.depth)
     const f = (v: number) => v.toFixed(1)
     const envelope = sum.mode === 'revolve'
@@ -84,6 +86,18 @@ function ParamControls({ sel }: { sel: SculptObject }) {
               <Slider label="Sweep angle" value={sk.arc ?? 360} min={20} max={360} step={5} unit="°" on={v => setObjectSketch(sel.id, { ...sk, arc: v })} />
               <Slider label="Sides" value={sk.segments} min={8} max={96} step={1} unit="" on={v => setObjectSketch(sel.id, { ...sk, segments: Math.round(v) })} />
             </>}
+        {otherSketches.length > 0 && (
+          <>
+            <div className="row" style={{ marginTop: 12 }}><label>Loft <small style={{ color: '#6E787B', fontWeight: 400 }}>blend into another profile</small></label></div>
+            <select className="lib-name" style={{ width: '100%' }} value={loftId} onChange={e => setLoftId(e.target.value)}>
+              <option value="">Blend to…</option>
+              {otherSketches.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+            <div className="opts" style={{ marginTop: 8 }}>
+              <button className="opt" disabled={!loftId} onClick={() => { const id = loftSketches(sel.id, loftId); if (id) { select(id); setLoftId('') } }}>Loft ⟿</button>
+            </div>
+          </>
+        )}
       </>
     )
   }
