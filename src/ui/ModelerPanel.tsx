@@ -3,6 +3,8 @@ import { useModeler, SCULPT_COLORS, type PrimitiveKind, type JewelryKind, type S
 import { profileThumb } from '../lib/sketchPresets'
 import { booleanOp, modelerToStl, sculptEstimate, sculptWarnings, boundingSize, sketchSummary, profileThinnest, MIN_SECTION_MM, type BooleanOp } from '../lib/sculpt'
 import { sculptLibrary, type SavedSculpt } from '../lib/sculptLibrary'
+import { sculptHandoff, SculptHandoffError } from '../lib/sculptHandoff'
+import { api, apiConfigured } from '../lib/api'
 import { analyzeMesh, type DfmReport } from '../lib/dfm'
 import { sculptTechSheet } from '../lib/sculptDoc'
 import { textToPdf, bodyAfterTitle } from '../lib/pdf'
@@ -253,6 +255,30 @@ export function ModelerPanel() {
   const { vol, castG, carats, gemCount, metalCost, stoneCost, settingLabor, total } = est
   const warnings = useMemo(() => sculptWarnings(objects), [objects])
 
+  const [sendingOrder, setSendingOrder] = useState(false)
+  /** Push the sculpted piece into the commercial pipeline: persist it as a
+   *  design (geometry + costed facts) then open an order against it. */
+  const sendToOrder = async () => {
+    if (!apiConfigured()) { flash('Connect a backend to send orders — the app is running standalone.'); return }
+    let handoff
+    try {
+      handoff = sculptHandoff(saveName, objects, alloyId)
+    } catch (err) {
+      flash(err instanceof SculptHandoffError ? err.message : 'Could not prepare this piece for order.')
+      return
+    }
+    setSendingOrder(true)
+    try {
+      const saved = await api.saveDesign(handoff.name, handoff.spec) as { id: string }
+      await api.createOrder(saved.id)
+      flash(`Ordered “${handoff.name}” — ${money(handoff.total)}, ${handoff.spec.metal.castGrams.toFixed(2)} g ${handoff.spec.alloyName}.`)
+    } catch (err) {
+      flash(err instanceof Error ? `Order failed: ${err.message}` : 'Order failed.')
+    } finally {
+      setSendingOrder(false)
+    }
+  }
+
   const doBoolean = (op: BooleanOp) => {
     const b = objects.find(o => o.id === otherId)
     if (!sel || !b) { flash('Pick a second shape to combine with.'); return }
@@ -378,6 +404,16 @@ export function ModelerPanel() {
         {gemCount > 0 && <div className="qline sub"><span>Setting labor ×{gemCount}</span><span>{money(settingLabor)}</span></div>}
         <div className="qline sub"><span>Cast, finish, polish</span><span>{money(MARKET.finishFee)}</span></div>
         <div className="qtotal"><span className="lbl">Estimate</span><span className="amt">{money(total)}</span></div>
+        <div className="qact">
+          <button className="primary" disabled={sendingOrder} onClick={sendToOrder}>
+            {sendingOrder ? 'Sending…' : 'Send to order →'}
+          </button>
+        </div>
+        <p className="disc">
+          Saves this piece — geometry, alloy, weight and price — as a design on the server and opens an order,
+          so a sculpted piece goes through the same pipeline as a configured one.
+          {!apiConfigured() && <> Needs a connected backend (currently standalone).</>}
+        </p>
         {warnings.length > 0 && (
           <div className="sculpt-warns">
             {warnings.map((w, i) => <p key={i} className="warn-line"><b>{w.part}</b> — {w.text}</p>)}
