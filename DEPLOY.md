@@ -101,3 +101,5 @@ Invoke-RestMethod https://blue-flame-api.onrender.com/api/health
 
 Health check any time: `GET /api/health`. Local dev: `cd server && npm install &&
 npm run seed && npm run dev` (needs Node ≥ 23.4).
+
+<!-- deploy pipeline verified: front end via Pages, API via Render auto-deploy on push -->
