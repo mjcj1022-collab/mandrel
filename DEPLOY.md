@@ -55,6 +55,42 @@ Do this only when you want real checkout. Use **test** keys first.
 
 ---
 
+## Redeploying (push from PowerShell)
+
+The front end redeploys on every push to `main`. The API does **not**, because it
+was connected by public URL rather than through Render's GitHub App. Pick one:
+
+**A · Auto-deploy, no secrets (simplest).** Grant Render's GitHub App access to
+this repo: Render → *blue-flame-api* → Settings → Repository → connect it (or
+GitHub → Settings → Applications → Render → grant `blue-flame`). After that
+`git push` deploys **both** halves and nothing else is needed.
+
+```powershell
+git push          # front end + API both redeploy
+```
+
+**B · Deploy hook (scriptable, one secret you create).** Render →
+*blue-flame-api* → Settings → **Deploy Hook** → copy the URL. Then either:
+
+*Fire it straight from PowerShell:*
+```powershell
+Invoke-RestMethod -Method Post $env:RENDER_DEPLOY_HOOK
+```
+
+*Or wire it into CI so a push does it* — add the URL as repo secret
+`RENDER_DEPLOY_HOOK` (Settings → Secrets and variables → Actions → **Secrets**).
+The `api` job in [deploy.yml](.github/workflows/deploy.yml) picks it up
+automatically; with no secret set it just skips.
+
+> The hook URL is a credential — keep it in a secret/env var, never in the repo.
+
+**Check what's live at any time:**
+```powershell
+Invoke-RestMethod https://blue-flame-api.onrender.com/api/health
+```
+
+---
+
 ## What talks to what
 
 | Piece | Where it lives | Config it needs |

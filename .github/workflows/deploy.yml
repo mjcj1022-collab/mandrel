@@ -48,3 +48,22 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Redeploy the Render API on the same push, so `git push` ships both halves.
+  # Needs repo secret RENDER_DEPLOY_HOOK (Render → blue-flame-api → Settings →
+  # Deploy Hook → copy URL). Unset = skipped, front end still deploys.
+  # Not needed if you grant Render's GitHub App access to this repo — then
+  # Render auto-deploys on push by itself.
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "RENDER_DEPLOY_HOOK not set — skipping API deploy."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" -o /dev/null
+          echo "Render API deploy triggered."
