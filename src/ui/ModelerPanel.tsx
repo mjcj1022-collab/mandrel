@@ -13,6 +13,7 @@ import { MARKET } from '../lib/market'
 import { useDesign } from '../state/design'
 import { textVertices, TEXT_FONT_NAMES } from '../lib/text3d'
 import { money } from '../lib/units'
+import { PartsLibrary } from './PartsLibrary'
 
 const DEG = 180 / Math.PI
 const round1 = (n: number) => Math.round(n * 10) / 10
@@ -629,6 +630,8 @@ export function ModelerPanel() {
           </>
         )}
       </div>
+
+      <PartsLibrary />
 
       <div className="panel-block quote">
         <div className="qact"><button className="primary" onClick={exportStl}>Export STL</button><button className="ghost" onClick={quotePdf}>Quote PDF</button><button className="ghost" onClick={techSheet}>Tech sheet</button></div>

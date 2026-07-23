@@ -16,12 +16,13 @@ function darken(hex: number, factor: number): number {
  *  global wireframe/inspect toggle. */
 export function useMetalMaterial(alloy: Alloy, finishId?: FinishId) {
   const wire = useDesign(s => s.viewWire)
+  const override = useDesign(s => s.colorwork.metal)   // custom colour from the Color studio
   return useMemo(() => {
     const f = finishId ? finishById(finishId) : null
     const roughness = f ? f.roughness : alloy.roughness
-    const color = f ? darken(alloy.color, f.darken) : alloy.color
+    const base = f ? darken(alloy.color, f.darken) : alloy.color
     return new THREE.MeshPhysicalMaterial({
-      color: wire ? 0xC6A265 : color,
+      color: wire ? 0xC6A265 : (override ?? base),
       metalness: wire ? 0 : 1,
       roughness,
       wireframe: wire,
@@ -29,5 +30,5 @@ export function useMetalMaterial(alloy: Alloy, finishId?: FinishId) {
       clearcoat: roughness > 0.4 || wire ? 0 : 0.25,
       clearcoatRoughness: 0.35
     })
-  }, [alloy, finishId, wire])
+  }, [alloy, finishId, wire, override])
 }

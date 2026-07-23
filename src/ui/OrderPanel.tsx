@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDesign } from '../state/design'
 import { reviewUrl } from '../lib/share'
-import { api, apiConfigured, type ServerOrder } from '../lib/api'
+import { api, apiConfigured, type ServerOrder, type Customer } from '../lib/api'
 import { ORDER_STAGES, stageIndex, stageLabel, stageKey } from '../lib/orderStages'
 
 /** Order status tracker. With a backend it manages the real, tenant-wide order
@@ -42,6 +42,7 @@ export function OrderPanel() {
 /** Live, server-backed order pipeline — every order for the shop, newest first. */
 function ServerOrders() {
   const [orders, setOrders] = useState<ServerOrder[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +53,15 @@ function ServerOrders() {
     catch { setError('Couldn’t reach the server — it may be waking up.') }
     finally { setLoading(false) }
   }
-  useEffect(() => { void refresh() }, [])
+  useEffect(() => { void refresh(); api.listCustomers().then(setCustomers).catch(() => {}) }, [])
+
+  /** Attach (or clear) a customer on an order, reflecting it locally. */
+  const assign = async (o: ServerOrder, cid: string) => {
+    try {
+      await api.setOrderCustomer(o.id, cid || null)
+      setOrders(list => list.map(x => x.id === o.id ? { ...x, customer_id: cid || null, customer_name: customers.find(c => c.id === cid)?.name ?? null } : x))
+    } catch { setError('Couldn’t set the client — try again.') }
+  }
 
   /** Move one order to a stage on the server, then reflect it locally. */
   const move = async (o: ServerOrder, index: number) => {
@@ -83,6 +92,15 @@ function ServerOrders() {
               <span className="attr-kind">{o.is_sculpt ? 'sculpt' : 'design'}</span>
               <span className="order-stage">{stageLabel(o.stage)}</span>
             </div>
+            {customers.length > 0 && (
+              <label className="order-client">
+                <span>Client</span>
+                <select value={o.customer_id ?? ''} onChange={e => void assign(o, e.target.value)}>
+                  <option value="">— none —</option>
+                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+            )}
             <div className="pipeline" style={{ marginTop: 8 }}>
               {ORDER_STAGES.map((s, i) => (
                 <button key={s.key} disabled={busyId === o.id}

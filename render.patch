@@ -1,0 +1,273 @@
+From db486c5d9d926c6eee08be837634a919176fea9d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 23 Jul 2026 18:47:40 +0000
+Subject: [PATCH] Render & share: high-res hero photo + 360 spin GIF (feature
+ #3)
+
+A CaptureRig publishes the Design scene's renderer/scene/camera; capture.ts
+renders the piece off-screen into a high-res sRGB, tone-mapped image (Photo, 2x
+the on-screen size, PNG) and spins the piece a full turn capturing frames that
+gifenc encodes into an animated GIF (360 GIF), with live progress on the button.
+Neither disturbs what's on screen. New Export group on the Design toolbar.
+
+Verified headless: Photo -> valid 411 KB PNG (correct gold/sRGB), 360 GIF -> valid
+GIF89a; 295 tests pass, strict build clean.
+---
+ package-lock.json     |   7 +++
+ package.json          |   1 +
+ src/gifenc.d.ts       |  10 ++++
+ src/viewer/Scene.tsx  |  30 ++++++++++-
+ src/viewer/capture.ts | 113 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 160 insertions(+), 1 deletion(-)
+ create mode 100644 src/gifenc.d.ts
+ create mode 100644 src/viewer/capture.ts
+
+diff --git a/package-lock.json b/package-lock.json
+index 3921d05..fc865b5 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -12,6 +12,7 @@
+         "@react-three/fiber": "^8.17.10",
+         "@stripe/react-stripe-js": "^6.8.0",
+         "@stripe/stripe-js": "^9.10.0",
++        "gifenc": "^1.0.3",
+         "jspdf": "^4.2.1",
+         "react": "^18.3.1",
+         "react-dom": "^18.3.1",
+@@ -2100,6 +2101,12 @@
+         "node": ">=6.9.0"
+       }
+     },
++    "node_modules/gifenc": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/gifenc/-/gifenc-1.0.3.tgz",
++      "integrity": "sha512-xdr6AdrfGBcfzncONUOlXMBuc5wJDtOueE3c5rdG0oNgtINLD+f2iFZltrBRZYzACRbKr+mSVU/x98zv2u3jmw==",
++      "license": "MIT"
++    },
+     "node_modules/glsl-noise": {
+       "version": "0.0.0",
+       "resolved": "https://registry.npmjs.org/glsl-noise/-/glsl-noise-0.0.0.tgz",
+diff --git a/package.json b/package.json
+index b8e031f..2222d0c 100644
+--- a/package.json
++++ b/package.json
+@@ -15,6 +15,7 @@
+     "@react-three/fiber": "^8.17.10",
+     "@stripe/react-stripe-js": "^6.8.0",
+     "@stripe/stripe-js": "^9.10.0",
++    "gifenc": "^1.0.3",
+     "jspdf": "^4.2.1",
+     "react": "^18.3.1",
+     "react-dom": "^18.3.1",
+diff --git a/src/gifenc.d.ts b/src/gifenc.d.ts
+new file mode 100644
+index 0000000..62a5f4f
+--- /dev/null
++++ b/src/gifenc.d.ts
+@@ -0,0 +1,10 @@
++declare module 'gifenc' {
++  interface Encoder {
++    writeFrame(index: Uint8Array, width: number, height: number, opts?: { palette?: number[][]; delay?: number }): void
++    finish(): void
++    bytes(): Uint8Array
++  }
++  export function GIFEncoder(): Encoder
++  export function quantize(data: Uint8Array | Uint8ClampedArray, maxColors: number): number[][]
++  export function applyPalette(data: Uint8Array | Uint8ClampedArray, palette: number[][]): Uint8Array
++}
+diff --git a/src/viewer/Scene.tsx b/src/viewer/Scene.tsx
+index ff48d9b..6048d2c 100644
+--- a/src/viewer/Scene.tsx
++++ b/src/viewer/Scene.tsx
+@@ -1,5 +1,5 @@
+ import { useRef, useState, useEffect, Suspense } from 'react'
+-import { Canvas, useFrame } from '@react-three/fiber'
++import { Canvas, useFrame, useThree } from '@react-three/fiber'
+ import { OrbitControls, Environment, Lightformer, ContactShadows } from '@react-three/drei'
+ import * as THREE from 'three'
+ import { useDesign } from '../state/design'
+@@ -12,6 +12,7 @@ import { AttributesOverlay } from '../ui/AttributesOverlay'
+ import { VertexSculptor } from './VertexSculptor'
+ import { useDesignEdit } from '../state/designEdit'
+ import type { VertexTool } from '../state/modeler'
++import { captureHandle, downloadHeroPng, downloadSpinGif } from './capture'
+ 
+ function Turntable({ on, children }: { on: boolean; children: React.ReactNode }) {
+   const ref = useRef<THREE.Group>(null)
+@@ -88,6 +89,18 @@ const EDIT_HINT: Record<VertexTool, string> = {
+   remove: 'Double-click a vertex to remove it · scroll to zoom',
+ }
+ 
++/** Publishes the renderer/scene/camera so the piece can be captured off-screen. */
++function CaptureRig() {
++  const gl = useThree(s => s.gl)
++  const scene = useThree(s => s.scene)
++  const camera = useThree(s => s.camera)
++  useEffect(() => {
++    captureHandle.current = { gl, scene, camera }
++    return () => { captureHandle.current = null }
++  }, [gl, scene, camera])
++  return null
++}
++
+ export function Scene() {
+   const spec = useDesign(s => s.spec)
+   const wire = useDesign(s => s.viewWire)
+@@ -106,6 +119,15 @@ export function Scene() {
+   const L = LIGHTING[scene]
+   const [grid, setGrid] = useState(false)
+   const [editNote, setEditNote] = useState<string | null>(null)
++  const [gifPct, setGifPct] = useState<number | null>(null)
++
++  const exportPhoto = () => { setSpin(false); requestAnimationFrame(() => downloadHeroPng(2)) }
++  const exportSpin = async () => {
++    if (gifPct != null) return
++    setSpin(false); setGifPct(0)
++    try { await downloadSpinGif({ onProgress: p => setGifPct(Math.round(p * 100)) }) }
++    finally { setGifPct(null) }
++  }
+ 
+   // Freeform vertex editing on the parametric piece (separate store).
+   const editActive = useDesignEdit(s => s.active)
+@@ -162,6 +184,7 @@ export function Scene() {
+         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
+       >
+         <color attach="background" args={[L.bg]} />
++        <CaptureRig />
+         <Suspense fallback={null}>
+           <StudioEnv rig={L.rig} intensity={L.envI} />
+         </Suspense>
+@@ -228,6 +251,11 @@ export function Scene() {
+           <button className="sbtn" aria-pressed={editActive && editTool === 'add'} onClick={() => enterEdit('add')} title="Click the surface to add a vertex">Add</button>
+           <button className="sbtn" aria-pressed={editActive && editTool === 'remove'} onClick={() => enterEdit('remove')} title="Double-click a vertex to remove it">Remove</button>
+         </div>
++        <div className="tbar-grp">
++          <span className="tbar-lbl">Export</span>
++          <button className="sbtn" onClick={exportPhoto} title="Download a high-resolution photo of the piece">Photo</button>
++          <button className="sbtn" onClick={exportSpin} disabled={gifPct != null} title="Download a spinning 360° GIF">{gifPct != null ? `GIF ${gifPct}%` : '360° GIF'}</button>
++        </div>
+       </div>
+ 
+       <div className="stage-tools">
+diff --git a/src/viewer/capture.ts b/src/viewer/capture.ts
+new file mode 100644
+index 0000000..ac45a1c
+--- /dev/null
++++ b/src/viewer/capture.ts
+@@ -0,0 +1,113 @@
++import * as THREE from 'three'
++import { GIFEncoder, quantize, applyPalette } from 'gifenc'
++import { pieceHandle } from './exportStl'
++
++/**
++ * Live handle to the Design scene's renderer/scene/camera, set by a small rig
++ * component inside the Canvas. Used to render the piece off-screen at high
++ * resolution for a hero photo and to spin it for an animated GIF — without
++ * disturbing what's on screen.
++ */
++interface CaptureHandle { gl: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.Camera }
++export const captureHandle: { current: CaptureHandle | null } = { current: null }
++
++export const canCapture = (): boolean => !!captureHandle.current
++
++/** Render the current view into a 2D canvas at width×height (sRGB, tone-mapped). */
++function renderToCanvas(width: number, height: number): HTMLCanvasElement | null {
++  const h = captureHandle.current
++  if (!h) return null
++  const { gl, scene, camera } = h
++  const rt = new THREE.WebGLRenderTarget(width, height, {
++    colorSpace: THREE.SRGBColorSpace,       // encode sRGB so it matches the screen
++    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
++    samples: 4,
++  })
++  const cam = camera as THREE.PerspectiveCamera
++  const prevAspect = cam.aspect
++  cam.aspect = width / height
++  cam.updateProjectionMatrix()
++  gl.setRenderTarget(rt)
++  gl.render(scene, cam)
++  gl.setRenderTarget(null)
++  cam.aspect = prevAspect
++  cam.updateProjectionMatrix()
++
++  const buf = new Uint8Array(width * height * 4)
++  gl.readRenderTargetPixels(rt, 0, 0, width, height, buf)
++  rt.dispose()
++
++  const canvas = document.createElement('canvas')
++  canvas.width = width; canvas.height = height
++  const ctx = canvas.getContext('2d')
++  if (!ctx) return null
++  const img = ctx.createImageData(width, height)
++  const rowBytes = width * 4
++  for (let y = 0; y < height; y++) {                    // WebGL reads bottom-up; flip
++    const src = (height - 1 - y) * rowBytes
++    img.data.set(buf.subarray(src, src + rowBytes), y * rowBytes)
++  }
++  ctx.putImageData(img, 0, 0)
++  return canvas
++}
++
++const trigger = (blob: Blob, filename: string) => {
++  const a = document.createElement('a')
++  a.href = URL.createObjectURL(blob)
++  a.download = filename
++  a.click()
++  setTimeout(() => URL.revokeObjectURL(a.href), 4000)
++}
++
++/** Download a high-resolution PNG of the current view (scale× the on-screen size). */
++export function downloadHeroPng(scale = 2): boolean {
++  const h = captureHandle.current
++  if (!h) return false
++  const dom = h.gl.domElement
++  const w = Math.max(64, Math.round(dom.clientWidth * scale))
++  const ht = Math.max(64, Math.round(dom.clientHeight * scale))
++  const canvas = renderToCanvas(w, ht)
++  if (!canvas) return false
++  canvas.toBlob(blob => { if (blob) trigger(blob, 'blue-flame-render.png') }, 'image/png')
++  return true
++}
++
++/**
++ * Spin the piece a full turn, capturing frames, and download an animated GIF.
++ * Rotates the rendered piece group directly, restoring it afterward.
++ */
++export async function downloadSpinGif(opts: { frames?: number; maxDim?: number; onProgress?: (p: number) => void } = {}): Promise<boolean> {
++  const h = captureHandle.current
++  const root = pieceHandle.current
++  if (!h || !root) return false
++  const { frames = 36, maxDim = 480, onProgress } = opts
++  const dom = h.gl.domElement
++  const ar = dom.clientWidth / Math.max(1, dom.clientHeight)
++  const w = ar >= 1 ? maxDim : Math.round(maxDim * ar)
++  const ht = ar >= 1 ? Math.round(maxDim / ar) : maxDim
++
++  const enc = GIFEncoder()
++  const start = root.rotation.y
++  try {
++    for (let i = 0; i < frames; i++) {
++      root.rotation.y = start + (i / frames) * Math.PI * 2
++      root.updateMatrixWorld(true)
++      const canvas = renderToCanvas(w, ht)
++      if (!canvas) break
++      const data = canvas.getContext('2d')!.getImageData(0, 0, w, ht).data
++      const palette = quantize(data, 256)
++      const index = applyPalette(data, palette)
++      enc.writeFrame(index, w, ht, { palette, delay: 60 })
++      onProgress?.((i + 1) / frames)
++      await new Promise(r => setTimeout(r))            // yield so the UI can paint progress
++    }
++  } finally {
++    root.rotation.y = start
++    root.updateMatrixWorld(true)
++  }
++  enc.finish()
++  const bytes = enc.bytes()
++  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
++  trigger(new Blob([ab], { type: 'image/gif' }), 'blue-flame-spin.gif')
++  return true
++}
+-- 
+2.43.0
+

@@ -3,10 +3,13 @@ import { useDesign } from '../state/design'
 import { computeBom } from '../lib/bom'
 import { manufacturabilityChecks, checkSummary } from '../lib/manufacture'
 import { downloadStl } from '../viewer/exportStl'
+import { heroImage } from '../viewer/capture'
+import { downloadTechPack } from '../lib/techpack'
 import { money } from '../lib/units'
 
 export function ProductionPanel() {
   const spec = useDesign(s => s.spec)
+  const shop = useDesign(s => s.shop)
   const bom = computeBom(spec)
   const checks = manufacturabilityChecks(spec)
   const sum = checkSummary(checks)
@@ -15,6 +18,12 @@ export function ProductionPanel() {
   const exportStl = () => {
     const ok = downloadStl(spec, `blue-flame-${spec.category}-${Date.now()}.stl`)
     setStlMsg(ok ? 'STL downloaded — metal only, true millimetres.' : 'Viewer not ready — rotate the model once and retry.')
+    setTimeout(() => setStlMsg(''), 4000)
+  }
+
+  const techPack = () => {
+    downloadTechPack(spec, shop.name, heroImage(1.5))
+    setStlMsg('Tech pack PDF downloaded — spec, castability, BOM, and a render.')
     setTimeout(() => setStlMsg(''), 4000)
   }
 
@@ -54,8 +63,9 @@ export function ProductionPanel() {
         </div>
       </div>
 
-      <div className="qact" style={{ marginTop: 16 }}>
+      <div className="qact" style={{ marginTop: 16, gap: 8 }}>
         <button className="primary" onClick={exportStl}>Export STL</button>
+        <button className="opt" onClick={techPack}>Tech pack (PDF)</button>
       </div>
       {stlMsg && <p className="disc">{stlMsg}</p>}
       <p className="disc">

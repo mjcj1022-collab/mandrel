@@ -18,6 +18,11 @@ interface DesignStore {
   setOrderStage: (i: number) => void
   viewWire: boolean
   toggleWire: () => void
+  colorwork: { metal: string | null; stone: string | null; bg: string | null }
+  setColorwork: (patch: Partial<{ metal: string | null; stone: string | null; bg: string | null }>) => void
+  resetColorwork: () => void
+  colorTarget: 'metal' | 'stone' | 'bg'
+  setColorTarget: (t: 'metal' | 'stone' | 'bg') => void
   explode: number
   setExplode: (v: number) => void
   tryOn: boolean
@@ -109,6 +114,11 @@ export const useDesign = create<DesignStore>((rawSet, get) => {
   setOrderStage: i => set({ orderStage: Math.max(0, Math.min(6, i)) }),
   viewWire: false,
   toggleWire: () => set(s => ({ viewWire: !s.viewWire })),
+  colorwork: { metal: null, stone: null, bg: null },
+  setColorwork: patch => set(s => ({ colorwork: { ...s.colorwork, ...patch } })),
+  resetColorwork: () => set({ colorwork: { metal: null, stone: null, bg: null } }),
+  colorTarget: 'metal',
+  setColorTarget: t => set({ colorTarget: t }),
   explode: 0,
   setExplode: v => set({ explode: v }),
   tryOn: false,

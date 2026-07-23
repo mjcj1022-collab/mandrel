@@ -6,6 +6,8 @@ import { alloyById, shapeById, stoneById, settingById, finishById } from '../cat
 import { formatSize } from '../lib/sizing'
 import { money } from '../lib/units'
 import { CATEGORY_LABEL, stoneOnPiece, type DesignSpec } from '../spec/types'
+import { downloadApprovalPdf } from '../lib/approval'
+import { heroImage } from '../viewer/capture'
 
 function summaryLines(spec: DesignSpec): [string, string][] {
   const rows: [string, string][] = [['Piece', CATEGORY_LABEL[spec.category]]]
@@ -30,8 +32,16 @@ export function ClientReview({ spec, shop }: { spec: DesignSpec; shop: string })
 
   const [state, setState] = useState<'review' | 'approved' | 'changes'>('review')
   const [note, setNote] = useState('')
+  const [sigName, setSigName] = useState('')
   const [copied, setCopied] = useState('')
   const p = computePrice(spec)
+
+  const signAndDownload = () => {
+    const name = sigName.trim()
+    if (!name) return
+    downloadApprovalPdf(spec, shop, { name, date: new Date().toLocaleDateString() }, heroImage(1.4))
+    setCopied('pdf'); setTimeout(() => setCopied(''), 2500)
+  }
 
   const copy = async (text: string, label: string) => {
     try { await navigator.clipboard.writeText(text); setCopied(label); setTimeout(() => setCopied(''), 2500) } catch { /* blocked */ }
@@ -72,8 +82,10 @@ export function ClientReview({ spec, shop }: { spec: DesignSpec; shop: string })
             )}
             {state === 'approved' && (
               <>
-                <p className="review-ok">✓ Thank you. Send this confirmation back to {shop} and they’ll begin your piece.</p>
-                <button className="primary" onClick={() => copy(approvalText, 'approval')}>{copied === 'approval' ? 'Copied ✓' : 'Copy my approval'}</button>
+                <p className="review-ok">✓ Almost done. Type your full name to sign, then download your signed approval and send it to {shop}.</p>
+                <input className="review-sign" placeholder="Type your full name to sign" value={sigName} onChange={e => setSigName(e.target.value)} aria-label="Full name (e-signature)" />
+                <button className="primary" disabled={!sigName.trim()} onClick={signAndDownload}>{copied === 'pdf' ? 'Downloaded ✓' : 'Download signed approval (PDF)'}</button>
+                <button className="ghost" onClick={() => copy(approvalText, 'approval')}>{copied === 'approval' ? 'Copied ✓' : 'Or copy my approval as text'}</button>
                 <button className="ghost" onClick={() => setState('review')}>Back</button>
               </>
             )}

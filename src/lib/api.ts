@@ -8,15 +8,27 @@ const BASE = (import.meta as unknown as { env?: Record<string, string> }).env?.V
 export const apiConfigured = (): boolean => !!BASE
 export const apiBase = (): string | undefined => BASE
 
-/** An order row as the server returns it, joined with its design. */
+/** An order row as the server returns it, joined with its design and customer. */
 export interface ServerOrder {
   id: string
   design_id: string | null
   design_name: string | null
+  customer_id: string | null
+  customer_name: string | null
   is_sculpt: 0 | 1
   stage: string
   created_at: string
   approved_at: string | null
+}
+
+/** A CRM customer record. */
+export interface Customer {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  notes: string | null
+  created_at: string
 }
 
 /** Ping the backend's health endpoint. Never throws — returns false if the API
@@ -106,7 +118,12 @@ export const api = {
   loadDesign: (id: string) => req(`/api/designs/${id}`),
   deleteDesign: (id: string) => req(`/api/designs/${id}`, { method: 'DELETE' }),
   listOrders: () => req('/api/orders') as Promise<ServerOrder[]>,
-  createOrder: (design_id: string) => req('/api/orders', { method: 'POST', body: JSON.stringify({ design_id }) }),
+  createOrder: (design_id: string, customer_id?: string) => req('/api/orders', { method: 'POST', body: JSON.stringify({ design_id, customer_id }) }),
   advanceOrder: (id: string, stage: string) => req(`/api/orders/${id}/stage`, { method: 'PATCH', body: JSON.stringify({ stage }) }) as Promise<{ updated: number }>,
+  setOrderCustomer: (id: string, customer_id: string | null) => req(`/api/orders/${id}/customer`, { method: 'PATCH', body: JSON.stringify({ customer_id }) }) as Promise<{ updated: number }>,
+  listCustomers: () => req('/api/customers') as Promise<Customer[]>,
+  createCustomer: (c: { name: string; email?: string; phone?: string; notes?: string }) => req('/api/customers', { method: 'POST', body: JSON.stringify(c) }) as Promise<{ id: string }>,
+  updateCustomer: (id: string, c: Partial<{ name: string; email: string; phone: string; notes: string }>) => req(`/api/customers/${id}`, { method: 'PATCH', body: JSON.stringify(c) }) as Promise<{ updated: number }>,
+  deleteCustomer: (id: string) => req(`/api/customers/${id}`, { method: 'DELETE' }) as Promise<{ deleted: number }>,
   checkout: (amount_cents: number, order_id: string, design_id?: string) => req('/api/checkout', { method: 'POST', body: JSON.stringify({ amount_cents, order_id, design_id }) }) as Promise<{ clientSecret: string; order_id: string | null }>
 }

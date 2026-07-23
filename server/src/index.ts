@@ -113,6 +113,37 @@ app.put('/api/designs/:id', requireAuth, (req, res) => {
   res.json({ updated: info.changes })
 })
 
+/* ---------------- customers (CRM) ---------------- */
+
+app.get('/api/customers', requireAuth, (req, res) => {
+  res.json(db.prepare('SELECT id, name, email, phone, notes, created_at FROM customers WHERE tenant_id = ? ORDER BY name COLLATE NOCASE').all(me(req).tenant_id))
+})
+
+app.post('/api/customers', requireAuth, (req, res) => {
+  const { name, email, phone, notes } = req.body ?? {}
+  if (!name || !String(name).trim()) { res.status(400).json({ error: 'name required' }); return }
+  const id = uid()
+  db.prepare('INSERT INTO customers (id, tenant_id, name, email, phone, notes) VALUES (?,?,?,?,?,?)')
+    .run(id, me(req).tenant_id, String(name).trim(), email ?? null, phone ?? null, notes ?? null)
+  audit(me(req).tenant_id, me(req).id, 'customer.create', id)
+  res.json({ id })
+})
+
+app.patch('/api/customers/:id', requireAuth, (req, res) => {
+  const { name, email, phone, notes } = req.body ?? {}
+  const info = db.prepare(
+    'UPDATE customers SET name = COALESCE(?, name), email = COALESCE(?, email), phone = COALESCE(?, phone), notes = COALESCE(?, notes) WHERE id = ? AND tenant_id = ?'
+  ).run(name ? String(name).trim() : null, email ?? null, phone ?? null, notes ?? null, req.params.id, me(req).tenant_id)
+  res.json({ updated: info.changes })
+})
+
+app.delete('/api/customers/:id', requireAuth, (req, res) => {
+  // Detach from any orders first so the order history survives the customer.
+  db.prepare('UPDATE orders SET customer_id = NULL WHERE customer_id = ? AND tenant_id = ?').run(req.params.id, me(req).tenant_id)
+  const info = db.prepare('DELETE FROM customers WHERE id = ? AND tenant_id = ?').run(req.params.id, me(req).tenant_id)
+  res.json({ deleted: info.changes })
+})
+
 /* ---------------- quotes ---------------- */
 
 app.post('/api/quotes', requireAuth, (req, res) => {
@@ -128,22 +159,33 @@ app.post('/api/quotes', requireAuth, (req, res) => {
 /* ---------------- orders / pipeline ---------------- */
 
 app.get('/api/orders', requireAuth, (req, res) => {
-  // Join the design so the order list is directly useful (name + whether it's a
-  // sculpt) without a second round trip. LEFT JOIN keeps orders whose design
-  // was deleted.
+  // Join the design (name + whether it's a sculpt) and the customer so the order
+  // list is directly useful without a second round trip. LEFT JOINs keep orders
+  // whose design or customer was deleted. Both joins are tenant-scoped so a
+  // crafted foreign id can't pull another shop's rows.
   res.json(db.prepare(`
-    SELECT o.*, d.name AS design_name,
+    SELECT o.*, d.name AS design_name, c.name AS customer_name,
            CASE WHEN json_extract(d.spec, '$.kind') = 'sculpt' THEN 1 ELSE 0 END AS is_sculpt
-    FROM orders o LEFT JOIN designs d ON d.id = o.design_id
+    FROM orders o
+    LEFT JOIN designs d ON d.id = o.design_id AND d.tenant_id = o.tenant_id
+    LEFT JOIN customers c ON c.id = o.customer_id AND c.tenant_id = o.tenant_id
     WHERE o.tenant_id = ? ORDER BY o.created_at DESC
   `).all(me(req).tenant_id))
 })
 
 app.post('/api/orders', requireAuth, (req, res) => {
-  const { design_id, quote_id } = req.body ?? {}
+  const { design_id, quote_id, customer_id } = req.body ?? {}
   const id = uid()
-  db.prepare('INSERT INTO orders (id, tenant_id, design_id, quote_id) VALUES (?,?,?,?)').run(id, me(req).tenant_id, design_id, quote_id ?? null)
+  db.prepare('INSERT INTO orders (id, tenant_id, design_id, quote_id, customer_id) VALUES (?,?,?,?,?)')
+    .run(id, me(req).tenant_id, design_id, quote_id ?? null, customer_id ?? null)
   res.json({ id, stage: 'designed' })
+})
+
+app.patch('/api/orders/:id/customer', requireAuth, (req, res) => {
+  const { customer_id } = req.body ?? {}
+  const info = db.prepare('UPDATE orders SET customer_id = ? WHERE id = ? AND tenant_id = ?')
+    .run(customer_id ?? null, req.params.id, me(req).tenant_id)
+  res.json({ updated: info.changes })
 })
 
 app.patch('/api/orders/:id/stage', requireAuth, (req, res) => {

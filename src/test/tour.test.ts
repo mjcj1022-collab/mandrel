@@ -12,7 +12,7 @@ describe('onboarding tour', () => {
 
   it('covers the core surfaces by name', () => {
     const all = TOUR_STEPS.map(s => `${s.title} ${s.body}`).join(' ').toLowerCase()
-    for (const kw of ['design', 'sculpt', 'free draw', 'vert', 'undo']) {
+    for (const kw of ['design', 'color', 'sculpt', 'free draw', 'vert', 'undo']) {
       expect(all, kw).toContain(kw)
     }
   })

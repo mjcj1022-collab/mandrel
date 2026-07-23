@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, Suspense } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Environment, Lightformer, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
 import { useDesign } from '../state/design'
@@ -12,6 +12,9 @@ import { AttributesOverlay } from '../ui/AttributesOverlay'
 import { VertexSculptor } from './VertexSculptor'
 import { useDesignEdit } from '../state/designEdit'
 import type { VertexTool } from '../state/modeler'
+import { captureHandle, downloadHeroPng, downloadSpinGif } from './capture'
+import { subdivideSoup, smoothSoup } from '../lib/sculpt'
+import { CameraTryOn } from '../ui/CameraTryOn'
 
 function Turntable({ on, children }: { on: boolean; children: React.ReactNode }) {
   const ref = useRef<THREE.Group>(null)
@@ -88,6 +91,18 @@ const EDIT_HINT: Record<VertexTool, string> = {
   remove: 'Double-click a vertex to remove it · scroll to zoom',
 }
 
+/** Publishes the renderer/scene/camera so the piece can be captured off-screen. */
+function CaptureRig() {
+  const gl = useThree(s => s.gl)
+  const scene = useThree(s => s.scene)
+  const camera = useThree(s => s.camera)
+  useEffect(() => {
+    captureHandle.current = { gl, scene, camera }
+    return () => { captureHandle.current = null }
+  }, [gl, scene, camera])
+  return null
+}
+
 export function Scene() {
   const spec = useDesign(s => s.spec)
   const wire = useDesign(s => s.viewWire)
@@ -105,7 +120,24 @@ export function Scene() {
   const [reduced, setReduced] = useState(false)
   const L = LIGHTING[scene]
   const [grid, setGrid] = useState(false)
+  const [ar, setAr] = useState(false)
   const [editNote, setEditNote] = useState<string | null>(null)
+  const [gifPct, setGifPct] = useState<number | null>(null)
+
+  const doSubdivide = () => {
+    if (!editVertices) return
+    if (editVertices.length / 3 > 90000) { setEditNote('Mesh is already very dense — smooth or reshape instead.'); setTimeout(() => setEditNote(null), 2600); return }
+    commitEdit(subdivideSoup(editVertices))
+  }
+  const doSmooth = () => { if (editVertices) commitEdit(smoothSoup(editVertices, editFalloff)) }
+
+  const exportPhoto = () => { setSpin(false); requestAnimationFrame(() => downloadHeroPng(2)) }
+  const exportSpin = async () => {
+    if (gifPct != null) return
+    setSpin(false); setGifPct(0)
+    try { await downloadSpinGif({ onProgress: p => setGifPct(Math.round(p * 100)) }) }
+    finally { setGifPct(null) }
+  }
 
   // Freeform vertex editing on the parametric piece (separate store).
   const editActive = useDesignEdit(s => s.active)
@@ -162,6 +194,7 @@ export function Scene() {
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
       >
         <color attach="background" args={[L.bg]} />
+        <CaptureRig />
         <Suspense fallback={null}>
           <StudioEnv rig={L.rig} intensity={L.envI} />
         </Suspense>
@@ -219,6 +252,7 @@ export function Scene() {
           <button className="sbtn" aria-pressed={wire} onClick={toggleWire}>Wireframe</button>
           <button className="sbtn" aria-pressed={grid} onClick={() => setGrid(v => !v)}>Grid</button>
           {isRing && <button className="sbtn" aria-pressed={tryOn} onClick={toggleTryOn} disabled={editActive}>Try-on</button>}
+          {isRing && <button className="sbtn" onClick={() => setAr(true)} disabled={editActive} title="Try the ring on with your camera">Camera</button>}
         </div>
         <div className="tbar-grp">
           <span className="tbar-lbl">Tools</span>
@@ -227,6 +261,11 @@ export function Scene() {
           <button className="sbtn" aria-pressed={editActive && editTool === 'edit'} onClick={() => enterEdit('edit')} title="Left-click a vertex and drag to reshape">Edit</button>
           <button className="sbtn" aria-pressed={editActive && editTool === 'add'} onClick={() => enterEdit('add')} title="Click the surface to add a vertex">Add</button>
           <button className="sbtn" aria-pressed={editActive && editTool === 'remove'} onClick={() => enterEdit('remove')} title="Double-click a vertex to remove it">Remove</button>
+        </div>
+        <div className="tbar-grp">
+          <span className="tbar-lbl">Export</span>
+          <button className="sbtn" onClick={exportPhoto} title="Download a high-resolution photo of the piece">Photo</button>
+          <button className="sbtn" onClick={exportSpin} disabled={gifPct != null} title="Download a spinning 360° GIF">{gifPct != null ? `GIF ${gifPct}%` : '360° GIF'}</button>
         </div>
       </div>
 
@@ -238,7 +277,11 @@ export function Scene() {
               <input type="range" min={0.4} max={8} step={0.1} value={editFalloff} onChange={e => setEditFalloff(+e.target.value)} />
             </label>
             <div className="stage-btns">
+              <button className="sbtn" onClick={doSubdivide} title="Refine — split each face for finer control">Subdivide</button>
+              <button className="sbtn" onClick={doSmooth} title="Relax — smooth lumps within the region">Smooth</button>
               <button className="sbtn" aria-pressed={editSym} onClick={toggleEditSym} title="Mirror edits across the centre">Mirror</button>
+            </div>
+            <div className="stage-btns">
               <button className="sbtn" onClick={undoEdit} title="Undo vertex edit">Undo</button>
               <button className="sbtn" onClick={redoEdit} title="Redo vertex edit">Redo</button>
               <button className="sbtn" onClick={resetEdit} title="Back to the freshly-baked shape">Reset</button>
@@ -260,6 +303,7 @@ export function Scene() {
       </div>
       {top && <div className="topview-note">Drag to look straight down — the plan view shows the setting and profile.</div>}
       {editNote && <div className="topview-note">{editNote}</div>}
+      {ar && <CameraTryOn onClose={() => setAr(false)} />}
     </div>
   )
 }

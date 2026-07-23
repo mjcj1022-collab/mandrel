@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { shapeById, stoneById, stoneMm, isGradeable, colorTint, clarityOptics, type Grading } from '../catalog'
 import { brilliantGeometry } from '../lib/gem'
+import { useDesign } from '../state/design'
 
 interface Props { shapeId: string; stoneTypeId: string; carat: number; grading?: Grading }
 
@@ -19,10 +20,11 @@ export function Stone({ shapeId, stoneTypeId, carat, grading }: Props) {
 
   const geometry = useMemo(() => brilliantGeometry(width, shape.segments), [width, shape.segments])
 
+  const override = useDesign(s => s.colorwork.stone)   // custom colour from the Color studio
   const graded = grading && isGradeable(stoneTypeId)
   const material = useMemo(() => {
     const optics = graded ? clarityOptics(grading!.clarity) : null
-    const color = graded ? colorTint(grading!.color) : stone.color
+    const color = override ?? (graded ? colorTint(grading!.color) : stone.color)
     return new THREE.MeshPhysicalMaterial({
       color,
       metalness: 0,
@@ -37,7 +39,7 @@ export function Stone({ shapeId, stoneTypeId, carat, grading }: Props) {
       transparent: true,
       opacity: stone.transparent ? 1 : 0.97
     })
-  }, [stone, width, graded, grading])
+  }, [stone, width, graded, grading, override])
 
   return (
     <group scale={[1, 1, shape.lwRatio]}>

@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Scene } from './viewer/Scene'
 import { ModelerScene } from './viewer/ModelerScene'
+import { ColorScene } from './viewer/ColorScene'
+import { ColorPanel } from './ui/ColorPanel'
 import { Controls } from './ui/Controls'
 import { MetalPanel } from './ui/MetalPanel'
+import { MetalOptionsPanel } from './ui/MetalOptionsPanel'
+import { StoneSourcePanel } from './ui/StoneSourcePanel'
 import { QuotePanel } from './ui/QuotePanel'
 import { ProductionPanel } from './ui/ProductionPanel'
 import { VariantsPanel } from './ui/VariantsPanel'
 import { OrderPanel } from './ui/OrderPanel'
+import { CustomersPanel } from './ui/CustomersPanel'
 import { LibraryPanel } from './ui/LibraryPanel'
 import { ProjectsPanel } from './ui/ProjectsPanel'
 import { ModelerPanel } from './ui/ModelerPanel'
@@ -24,7 +29,7 @@ import { money } from './lib/units'
 import { CATEGORY_LABEL } from './spec/types'
 import { shareUrl, specFromUrl } from './lib/share'
 
-type Mode = 'design' | 'model'
+type Mode = 'design' | 'model' | 'color'
 
 function Masthead({ mode, setMode, onLab, onTour }: { mode: Mode; setMode: (m: Mode) => void; onLab: () => void; onTour: () => void }) {
   const spec = useDesign(s => s.spec)
@@ -48,6 +53,7 @@ function Masthead({ mode, setMode, onLab, onTour }: { mode: Mode; setMode: (m: M
         <span className="logo">{shop.name === 'Blue Flame' ? <>BLUE&nbsp;<em>FLAME</em></> : shop.name}</span>
         <div className="mode-tabs">
           <button aria-pressed={mode === 'design'} onClick={() => setMode('design')}>Design</button>
+          <button aria-pressed={mode === 'color'} onClick={() => setMode('color')}>Color</button>
           <button aria-pressed={mode === 'model'} onClick={() => setMode('model')}>Sculpt</button>
         </div>
         {mode === 'design' ? (
@@ -58,6 +64,8 @@ function Masthead({ mode, setMode, onLab, onTour }: { mode: Mode; setMode: (m: M
             {!shop.hideCost && <span className="mast-fig strong">{money(p.total)}</span>}
             <button className="mast-lab" onClick={share}>{shared ? 'Link copied' : 'Share'}</button>
           </>
+        ) : mode === 'color' ? (
+          <span className="tag">{CATEGORY_LABEL[spec.category]} · custom color studio</span>
         ) : (
           <span className="tag">Free-form CSG modeler</span>
         )}
@@ -116,14 +124,26 @@ export default function App() {
             <aside className="panel">
               <div className="panel-scroll">
                 <Controls />
+                <StoneSourcePanel />
                 <VariantsPanel />
                 <MetalPanel />
+                <MetalOptionsPanel />
                 <ProductionPanel />
                 <OrderPanel />
+                <CustomersPanel />
                 <LibraryPanel />
                 <ProjectsPanel />
               </div>
               <QuotePanel />
+            </aside>
+          </>
+        ) : mode === 'color' ? (
+          <>
+            <ColorScene />
+            <aside className="panel">
+              <div className="panel-scroll">
+                <ColorPanel />
+              </div>
             </aside>
           </>
         ) : (

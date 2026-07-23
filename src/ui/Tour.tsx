@@ -13,6 +13,10 @@ export const TOUR_STEPS: TourStep[] = [
     body: 'Pick a category (ring, pendant, earrings…) and a template, then tune size, metal, stone and setting. The 3D preview, the finished weight and the price all update live as you go.'
   },
   {
+    title: 'The Color tab',
+    body: 'Open Color for a custom-color studio: click the metal or the stone on the 3D render, then paint it with a Photoshop-style picker or a click of a preset swatch. Colors preview live and never change your real specs — “Reset all colors” clears them.'
+  },
+  {
     title: 'The Sculpt tab',
     body: 'Switch to Sculpt for free-form modeling: drop in jewelry parts or primitives, move them with the gizmo, combine them with union / subtract / intersect, and export a print-ready STL.'
   },

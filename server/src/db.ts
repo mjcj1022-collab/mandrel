@@ -69,7 +69,22 @@ db.exec(`
     detail text,
     created_at text NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS customers (
+    id text PRIMARY KEY,
+    tenant_id text NOT NULL,
+    name text NOT NULL,
+    email text,
+    phone text,
+    notes text,
+    created_at text NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers (tenant_id);
 `)
+
+// Link orders to a customer. Additive on an existing database (the column may
+// already be present), so the ALTER is guarded.
+try { db.exec('ALTER TABLE orders ADD COLUMN customer_id text') } catch { /* column already exists */ }
 
 export const uid = (): string => globalThis.crypto.randomUUID()
 
