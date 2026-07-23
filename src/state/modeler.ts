@@ -10,6 +10,9 @@ export type SculptKind = PrimitiveKind | JewelryKind
 export type SculptMaterial = 'metal' | 'gem'
 export type TransformMode = 'translate' | 'rotate' | 'scale'
 export type EditMode = 'object' | 'vertex' | 'surface'
+/** In Vertices mode: 'select' only highlights a vertex (safe orbiting, no
+ *  accidental moves); 'edit' shows the drag gizmo and pulls vertices. */
+export type VertexTool = 'select' | 'edit'
 export type SurfaceOp = 'emboss' | 'cut'
 export type ShankProfile = 'round' | 'flat' | 'dshape' | 'knife' | 'comfort'
 
@@ -92,6 +95,8 @@ interface ModelerStore {
   selectedId: string | null
   mode: TransformMode
   editMode: EditMode
+  vertexTool: VertexTool
+  selectedVertex: number | null
   falloff: number
   alloyId: string
   snap: boolean
@@ -104,6 +109,8 @@ interface ModelerStore {
   undo: () => void
   redo: () => void
   setEditMode: (m: EditMode) => void
+  setVertexTool: (t: VertexTool) => void
+  pickVertex: (i: number | null) => void
   setFalloff: (r: number) => void
   setSurfaceOp: (op: SurfaceOp) => void
   setBrush: (r: number) => void
@@ -158,6 +165,8 @@ export const useModeler = create<ModelerStore>((set, get) => {
   selectedId: null,
   mode: 'translate',
   editMode: 'object',
+  vertexTool: 'edit',
+  selectedVertex: null,
   falloff: 2.5,
   alloyId: '14ky',
   snap: false,
@@ -181,7 +190,10 @@ export const useModeler = create<ModelerStore>((set, get) => {
     return { objects: next, future: s.future.slice(1), past: [...s.past, s.objects].slice(-HISTORY_LIMIT), selectedId: stillThere(s.selectedId, next) }
   }),
 
-  setEditMode: editMode => set({ editMode }),
+  setEditMode: editMode => set({ editMode, selectedVertex: editMode === 'vertex' ? get().selectedVertex : null }),
+  // Choosing Select or Edit implies you're in Vertices mode.
+  setVertexTool: vertexTool => set({ vertexTool, editMode: 'vertex' }),
+  pickVertex: selectedVertex => set({ selectedVertex }),
   setFalloff: falloff => set({ falloff: Math.max(0.2, falloff) }),
   setSurfaceOp: surfaceOp => set({ surfaceOp }),
   setBrush: brush => set({ brush: Math.max(0.15, brush) }),
@@ -418,7 +430,7 @@ export const useModeler = create<ModelerStore>((set, get) => {
     set(s => ({ objects: [...s.objects, ...copies] }))
   },
 
-  select: id => set({ selectedId: id }),
+  select: id => set(s => (id === s.selectedId ? { selectedId: id } : { selectedId: id, selectedVertex: null })),
   setMode: mode => set({ mode }),
   setAlloy: id => set({ alloyId: id }),
   clear: () => { record(); set({ objects: [], selectedId: null }) },

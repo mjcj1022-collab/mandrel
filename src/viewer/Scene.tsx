@@ -6,9 +6,11 @@ import { useDesign } from '../state/design'
 import { alloyById, shapeById, stoneMm } from '../catalog'
 import { sizeToDiameter, formatSize } from '../lib/sizing'
 import { CATEGORY_LABEL, stoneOnPiece } from '../spec/types'
-import { Piece, viewTarget } from './Piece'
-import { pieceHandle } from './exportStl'
+import { Piece, viewTarget, displayScale } from './Piece'
+import { pieceHandle, pieceToEditableVertices } from './exportStl'
 import { AttributesOverlay } from '../ui/AttributesOverlay'
+import { VertexSculptor } from './VertexSculptor'
+import { useDesignEdit } from '../state/designEdit'
 
 function Turntable({ on, children }: { on: boolean; children: React.ReactNode }) {
   const ref = useRef<THREE.Group>(null)
@@ -94,12 +96,48 @@ export function Scene() {
   const [scene, setScene] = useState('studio')
   const [reduced, setReduced] = useState(false)
   const L = LIGHTING[scene]
+  const [grid, setGrid] = useState(false)
+  const [editNote, setEditNote] = useState<string | null>(null)
+
+  // Freeform vertex editing on the parametric piece (separate store).
+  const editActive = useDesignEdit(s => s.active)
+  const editVertices = useDesignEdit(s => s.vertices)
+  const editTool = useDesignEdit(s => s.tool)
+  const editSelVert = useDesignEdit(s => s.selectedVertex)
+  const editFalloff = useDesignEdit(s => s.falloff)
+  const editSym = useDesignEdit(s => s.symmetry)
+  const beginEdit = useDesignEdit(s => s.begin)
+  const setEditTool = useDesignEdit(s => s.setTool)
+  const setEditFalloff = useDesignEdit(s => s.setFalloff)
+  const toggleEditSym = useDesignEdit(s => s.toggleSymmetry)
+  const pickEditVert = useDesignEdit(s => s.pick)
+  const commitEdit = useDesignEdit(s => s.commit)
+  const undoEdit = useDesignEdit(s => s.undo)
+  const redoEdit = useDesignEdit(s => s.redo)
+  const resetEdit = useDesignEdit(s => s.reset)
+  const exitEdit = useDesignEdit(s => s.exit)
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
     setReduced(mq.matches)
     if (mq.matches) setSpin(false)
   }, [])
+
+  // Bake the on-screen piece into an editable triangle soup and enter edit mode.
+  // Re-clicking a tool while already editing just switches Select↔Edit.
+  const enterEdit = (tool: 'select' | 'edit') => {
+    if (editActive) { setEditTool(tool); return }
+    const root = pieceHandle.current
+    if (!root) return
+    const verts = pieceToEditableVertices(spec, root)
+    if (verts.length < 9) {
+      setEditNote('Nothing metal to reshape in this view.')
+      setTimeout(() => setEditNote(null), 2600)
+      return
+    }
+    setSpin(false)
+    beginEdit(verts, tool)
+  }
 
   const target = viewTarget(spec)
 
@@ -117,11 +155,26 @@ export function Scene() {
         <ambientLight intensity={L.amb} />
         <directionalLight position={[6, 12, 9]} intensity={L.key[1]} color={L.key[0]} />
         <directionalLight position={[-8, 3, -7]} intensity={L.fill[1]} color={L.fill[0]} />
-        <Turntable on={spin && !reduced}>
+        <Turntable on={spin && !reduced && !editActive}>
           <group ref={g => { pieceHandle.current = g }}>
-            <Piece spec={spec} />
+            {!editActive && <Piece spec={spec} />}
           </group>
         </Turntable>
+        {editActive && editVertices && (
+          <group scale={displayScale(spec)}>
+            <VertexSculptor
+              vertices={editVertices}
+              color={0xD8B36A}
+              falloff={editFalloff}
+              symmetry={editSym}
+              tool={editTool}
+              selectedVertex={editSelVert}
+              onPick={i => pickEditVert(i)}
+              onCommit={v => commitEdit(v)}
+            />
+          </group>
+        )}
+        {grid && <gridHelper args={[80, 40, '#39424633', '#252b2e']} position={[0, -13, 0]} />}
         <ContactShadows position={[0, -13, 0]} opacity={0.5} scale={70} blur={2.6} far={26} resolution={512} color="#000000" />
         <OrbitControls
           makeDefault
@@ -144,16 +197,42 @@ export function Scene() {
       </div>
 
       <div className="stage-foot">
-        <div className="scalebar"><i /> Drag to orbit · scroll to zoom</div>
-        <div className="stage-btns">
-          <button className="sbtn" aria-pressed={spin} onClick={() => setSpin(v => !v)}>Turntable</button>
+        <div className="scalebar"><i /> {editActive ? (editTool === 'select' ? 'Click a vertex to select · orbit freely' : 'Click the surface, drag the gizmo · scroll to zoom') : 'Drag to orbit · scroll to zoom'}</div>
+      </div>
+
+      <div className="stage-toolbar">
+        <div className="tbar-grp">
+          <span className="tbar-lbl">View</span>
+          <button className="sbtn" aria-pressed={spin} onClick={() => setSpin(v => !v)} disabled={editActive}>Turntable</button>
           <button className="sbtn" aria-pressed={top} onClick={() => setTop(v => !v)}>Top view</button>
           <button className="sbtn" aria-pressed={wire} onClick={toggleWire}>Wireframe</button>
-          {isRing && <button className="sbtn" aria-pressed={tryOn} onClick={toggleTryOn}>Try-on</button>}
+          <button className="sbtn" aria-pressed={grid} onClick={() => setGrid(v => !v)}>Grid</button>
+          {isRing && <button className="sbtn" aria-pressed={tryOn} onClick={toggleTryOn} disabled={editActive}>Try-on</button>}
+        </div>
+        <div className="tbar-grp">
+          <span className="tbar-lbl">Tools</span>
+          <button className="sbtn" aria-pressed={!editActive} onClick={exitEdit} title="View / orbit the parametric piece">Move</button>
+          <button className="sbtn" aria-pressed={editActive && editTool === 'select'} onClick={() => enterEdit('select')} title="Select vertices only">Select</button>
+          <button className="sbtn" aria-pressed={editActive && editTool === 'edit'} onClick={() => enterEdit('edit')} title="Drag vertices to reshape">Edit</button>
         </div>
       </div>
 
       <div className="stage-tools">
+        {editActive && (
+          <div className="edit-tools">
+            <label className="explode-row">
+              <span>Region</span>
+              <input type="range" min={0.4} max={8} step={0.1} value={editFalloff} onChange={e => setEditFalloff(+e.target.value)} />
+            </label>
+            <div className="stage-btns">
+              <button className="sbtn" aria-pressed={editSym} onClick={toggleEditSym} title="Mirror edits across the centre">Mirror</button>
+              <button className="sbtn" onClick={undoEdit} title="Undo vertex edit">Undo</button>
+              <button className="sbtn" onClick={redoEdit} title="Redo vertex edit">Redo</button>
+              <button className="sbtn" onClick={resetEdit} title="Back to the freshly-baked shape">Reset</button>
+              <button className="sbtn" onClick={exitEdit} title="Leave edit mode (back to parametric)">Done</button>
+            </div>
+          </div>
+        )}
         <label className="explode-row">
           <span>Explode</span>
           <input type="range" min={0} max={1} step={0.02} value={explode} onChange={e => setExplode(+e.target.value)} />
@@ -167,6 +246,7 @@ export function Scene() {
         )}
       </div>
       {top && <div className="topview-note">Drag to look straight down — the plan view shows the setting and profile.</div>}
+      {editNote && <div className="topview-note">{editNote}</div>}
     </div>
   )
 }

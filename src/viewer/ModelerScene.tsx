@@ -4,7 +4,9 @@ import { OrbitControls, Environment, GizmoHelper, GizmoViewport } from '@react-t
 import * as THREE from 'three'
 import { useModeler } from '../state/modeler'
 import { SculptMesh } from './SculptMesh'
+import { EnvBoundary } from './EnvBoundary'
 import { ObjectListOverlay } from '../ui/ObjectListOverlay'
+import { ModelerToolbar } from '../ui/ModelerToolbar'
 import { SketchDock } from '../ui/SketchPad'
 
 export function ModelerScene() {
@@ -22,9 +24,11 @@ export function ModelerScene() {
         onPointerMissed={() => select(null)}
       >
         <color attach="background" args={['#0E1113']} />
-        <Suspense fallback={null}>
-          <Environment preset="studio" environmentIntensity={0.85} />
-        </Suspense>
+        <EnvBoundary>
+          <Suspense fallback={null}>
+            <Environment preset="studio" environmentIntensity={0.85} />
+          </Suspense>
+        </EnvBoundary>
         <ambientLight intensity={0.35} />
         <directionalLight position={[10, 18, 12]} intensity={1.5} castShadow />
         <directionalLight position={[-10, 4, -8]} intensity={0.6} color="#BFD4FF" />
@@ -40,6 +44,7 @@ export function ModelerScene() {
       </Canvas>
 
       <ObjectListOverlay />
+      <ModelerToolbar />
       {sketching && <SketchDock />}
 
       {objects.length === 0 && (
@@ -51,7 +56,7 @@ export function ModelerScene() {
       )}
 
       <div className="stage-foot">
-        <div className="scalebar"><i /> Click to select · drag the gizmo · scroll to zoom</div>
+        <div className="scalebar"><i /> Select a part · pick a tool below · scroll to zoom</div>
       </div>
     </div>
   )

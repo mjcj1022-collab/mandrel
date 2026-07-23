@@ -39,6 +39,40 @@ export function pieceToStl(spec: DesignSpec, root: THREE.Object3D): string {
   return stl
 }
 
+/**
+ * Flatten the rendered piece into a single editable triangle soup — the same
+ * metal-only, turntable-cancelled, true-millimetre geometry `pieceToStl` builds,
+ * but returned as a flat positions array (x,y,z,…) at identity transform. This
+ * is exactly what `sculptPull` / `VertexSculptor` consume, so the Design tab can
+ * drag the piece's vertices with the Sculpt engine. Returns [] if nothing metal
+ * is on screen (e.g. a bare gemstone view).
+ */
+export function pieceToEditableVertices(spec: DesignSpec, root: THREE.Object3D): number[] {
+  root.updateWorldMatrix(true, true)
+  const rootInv = new THREE.Matrix4().copy(root.matrixWorld).invert()
+  const invScale = 1 / displayScale(spec)
+  const scaleM = new THREE.Matrix4().makeScale(invScale, invScale, invScale)
+
+  const out: number[] = []
+  root.traverse(obj => {
+    const mesh = obj as THREE.Mesh
+    if (!mesh.isMesh) return
+    const mat = mesh.material as THREE.MeshPhysicalMaterial
+    if (!mat || mat.metalness !== 1) return   // metal only, matching the STL export
+
+    const g = (mesh.geometry as THREE.BufferGeometry).clone()
+    const local = new THREE.Matrix4().multiplyMatrices(rootInv, mesh.matrixWorld)
+    local.premultiply(scaleM)
+    g.applyMatrix4(local)
+    const ng = g.getIndex() ? g.toNonIndexed() : g   // flat triangle soup
+    const arr = ng.getAttribute('position').array as ArrayLike<number>
+    for (let i = 0; i < arr.length; i++) out.push(arr[i])
+    if (ng !== g) ng.dispose()
+    g.dispose()
+  })
+  return out
+}
+
 export function downloadStl(spec: DesignSpec, filename: string): boolean {
   const root = pieceHandle.current
   if (!root) return false

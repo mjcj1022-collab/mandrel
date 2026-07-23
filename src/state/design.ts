@@ -129,7 +129,7 @@ export const useDesign = create<DesignStore>((rawSet, get) => {
   setTwoTone: (on: boolean) => set(s => ({ spec: { ...s.spec, metal: { ...s.spec.metal, twoTone: on, headAlloyId: s.spec.metal.headAlloyId ?? (s.spec.metal.alloyId === '14ky' ? '14kw' : '14ky') } } })),
   setHeadAlloy: (id: string) => set(s => ({ spec: { ...s.spec, metal: { ...s.spec.metal, headAlloyId: id } } })),
   setMetalForm: (id: string) => set(s => ({ spec: { ...s.spec, metal: { ...s.spec.metal, form: id } } })),
-  applyCustomAlloy: alloy => { registerAlloy(alloy); set(s => ({ spec: { ...s.spec, metal: { alloyId: alloy.id } } })) },
+  applyCustomAlloy: alloy => { registerAlloy(alloy); set(s => ({ spec: { ...s.spec, metal: { ...s.spec.metal, alloyId: alloy.id } } })) },
   setShape: id => set(s => ({ spec: { ...s.spec, center: { ...s.spec.center, shapeId: id } } })),
   setStone: id => set(s => ({ spec: { ...s.spec, center: { ...s.spec.center, stoneTypeId: id } } })),
   setCarat: ct => set(s => ({ spec: { ...s.spec, center: { ...s.spec.center, carat: ct } } })),

@@ -44,6 +44,8 @@ code{font-family:var(--mono);font-size:.92em}
 .explode-row{display:flex;align-items:center;gap:8px;background:rgba(14,17,19,.8);border:1px solid var(--rule-dark);padding:6px 10px}
 .explode-row span{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#9AA4A7}
 .explode-row input{width:110px}
+.edit-tools{display:flex;flex-direction:column;gap:8px}
+.edit-tools .stage-btns{flex-wrap:wrap;max-width:250px}
 .skin-row{display:flex;gap:6px}
 .skin{width:22px;height:22px;border:1px solid var(--rule-dark);cursor:pointer;padding:0}
 .skin.on{border-color:var(--karat);box-shadow:0 0 0 1px var(--karat)}
@@ -78,7 +80,19 @@ code{font-family:var(--mono);font-size:.92em}
 .dfm-line.warn b{color:#C77A45}
 .dfm-line.pass b{color:#5FB07A}
 .attr-kind{font-style:normal;font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;color:#6E787B;text-transform:uppercase}
+.attr-sub{display:block;font-style:normal;font-family:var(--mono);font-size:8.5px;letter-spacing:.04em;color:#7E8A8D;text-transform:uppercase;margin-top:2px}
+.attr-acts{flex:0 0 auto;display:flex;gap:5px;align-items:center}
+.attrs-foot{display:flex;justify-content:flex-end;padding:7px 11px;border-top:1px solid var(--rule-dark);position:sticky;bottom:0;background:rgba(14,17,19,.92)}
+.attrs-foot button{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;background:none;border:1px solid var(--rule-dark);color:#9AA4A7;padding:3px 8px;cursor:pointer}
+.attrs-foot button:hover{color:#fff;border-color:var(--karat)}
 @media(max-width:560px){.stage-attrs{width:170px;left:12px}}
+
+/* shared bottom tool bar — drawing options + select/edit tools */
+.stage-toolbar{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:12px;align-items:center;background:rgba(14,17,19,.86);border:1px solid var(--rule-dark);backdrop-filter:blur(3px);padding:8px 12px;pointer-events:auto;z-index:3;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 40px)}
+.tbar-grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tbar-grp + .tbar-grp{border-left:1px solid var(--rule-dark);padding-left:12px}
+.tbar-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.13em;text-transform:uppercase;color:#6E787B;margin-right:2px}
+@media(max-width:560px){.stage-toolbar{gap:8px;padding:6px 8px}.tbar-grp+.tbar-grp{padding-left:8px}}
 
 /* panel */
 .panel{background:var(--paper);border-left:1px solid var(--rule);display:flex;flex-direction:column;min-height:0}
