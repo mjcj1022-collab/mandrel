@@ -161,6 +161,7 @@ export function SketchDock() {
       <div className="sketch-dock-head">
         <b>{isNew.current ? 'Free draw' : 'Edit sketch'}</b>
         <span>{edit ? 'click add · drag · right-click del' : mode === 'revolve' ? 'draw right of axis' : 'draw a closed loop'}</span>
+        <button className="sketch-x" onClick={done} title="Save and close" aria-label="Save and close">×</button>
       </div>
       <svg
         ref={svgRef} viewBox={`0 0 ${W} ${H}`} className="sketch-svg"

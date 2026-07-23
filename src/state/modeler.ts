@@ -10,9 +10,9 @@ export type SculptKind = PrimitiveKind | JewelryKind
 export type SculptMaterial = 'metal' | 'gem'
 export type TransformMode = 'translate' | 'rotate' | 'scale'
 export type EditMode = 'object' | 'vertex' | 'surface'
-/** In Vertices mode: 'select' only highlights a vertex (safe orbiting, no
- *  accidental moves); 'edit' shows the drag gizmo and pulls vertices. */
-export type VertexTool = 'select' | 'edit'
+/** In Vertices mode: 'select' highlights only; 'edit' left-click-drags a vertex;
+ *  'add' single-clicks to add a vertex; 'remove' double-clicks to delete one. */
+export type VertexTool = 'select' | 'edit' | 'add' | 'remove'
 export type SurfaceOp = 'emboss' | 'cut'
 export type ShankProfile = 'round' | 'flat' | 'dshape' | 'knife' | 'comfort'
 

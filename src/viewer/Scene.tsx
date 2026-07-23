@@ -11,6 +11,7 @@ import { pieceHandle, pieceToEditableVertices } from './exportStl'
 import { AttributesOverlay } from '../ui/AttributesOverlay'
 import { VertexSculptor } from './VertexSculptor'
 import { useDesignEdit } from '../state/designEdit'
+import type { VertexTool } from '../state/modeler'
 
 function Turntable({ on, children }: { on: boolean; children: React.ReactNode }) {
   const ref = useRef<THREE.Group>(null)
@@ -80,6 +81,13 @@ function StudioEnv({ rig, intensity }: { rig: Lighting['rig']; intensity: number
 
 const SKIN_TONES = ['#E7C1A0', '#C89778', '#A56A43', '#6E4326']
 
+const EDIT_HINT: Record<VertexTool, string> = {
+  select: 'Click a vertex to select · orbit freely',
+  edit: 'Left-click a vertex and drag to reshape · scroll to zoom',
+  add: 'Click the surface to add a vertex · scroll to zoom',
+  remove: 'Double-click a vertex to remove it · scroll to zoom',
+}
+
 export function Scene() {
   const spec = useDesign(s => s.spec)
   const wire = useDesign(s => s.viewWire)
@@ -124,8 +132,8 @@ export function Scene() {
   }, [])
 
   // Bake the on-screen piece into an editable triangle soup and enter edit mode.
-  // Re-clicking a tool while already editing just switches Select↔Edit.
-  const enterEdit = (tool: 'select' | 'edit') => {
+  // Re-clicking a tool while already editing just switches the active tool.
+  const enterEdit = (tool: VertexTool) => {
     if (editActive) { setEditTool(tool); return }
     const root = pieceHandle.current
     if (!root) return
@@ -200,7 +208,7 @@ export function Scene() {
       </div>
 
       <div className="stage-foot">
-        <div className="scalebar"><i /> {editActive ? (editTool === 'select' ? 'Click a vertex to select · orbit freely' : 'Left-click a vertex and drag to reshape · scroll to zoom') : 'Drag to orbit · scroll to zoom'}</div>
+        <div className="scalebar"><i /> {editActive ? EDIT_HINT[editTool] : 'Drag to orbit · scroll to zoom'}</div>
       </div>
 
       <div className="stage-toolbar">
@@ -216,7 +224,9 @@ export function Scene() {
           <span className="tbar-lbl">Tools</span>
           <button className="sbtn" aria-pressed={!editActive} onClick={exitEdit} title="View / orbit the parametric piece">Move</button>
           <button className="sbtn" aria-pressed={editActive && editTool === 'select'} onClick={() => enterEdit('select')} title="Select vertices only">Select</button>
-          <button className="sbtn" aria-pressed={editActive && editTool === 'edit'} onClick={() => enterEdit('edit')} title="Drag vertices to reshape">Edit</button>
+          <button className="sbtn" aria-pressed={editActive && editTool === 'edit'} onClick={() => enterEdit('edit')} title="Left-click a vertex and drag to reshape">Edit</button>
+          <button className="sbtn" aria-pressed={editActive && editTool === 'add'} onClick={() => enterEdit('add')} title="Click the surface to add a vertex">Add</button>
+          <button className="sbtn" aria-pressed={editActive && editTool === 'remove'} onClick={() => enterEdit('remove')} title="Double-click a vertex to remove it">Remove</button>
         </div>
       </div>
 

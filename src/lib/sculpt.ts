@@ -295,6 +295,47 @@ export function sculptPull(
   return out
 }
 
+/**
+ * Add a vertex by splitting the clicked triangle at `point`: triangle ABC in the
+ * flat soup at `faceIndex` becomes PAB, PBC, PCA, so P is a new, draggable
+ * vertex on the surface. Returns a new positions array (the input is untouched).
+ */
+export function addVertexInTriangle(verts: number[], faceIndex: number, point: readonly [number, number, number]): number[] {
+  const i = faceIndex * 9
+  if (i < 0 || i + 9 > verts.length) return verts
+  const a = [verts[i], verts[i + 1], verts[i + 2]]
+  const b = [verts[i + 3], verts[i + 4], verts[i + 5]]
+  const c = [verts[i + 6], verts[i + 7], verts[i + 8]]
+  const p = [point[0], point[1], point[2]]
+  const out = verts.slice()
+  out.splice(i, 9, ...p, ...a, ...b, ...p, ...b, ...c, ...p, ...c, ...a)
+  return out
+}
+
+/**
+ * Remove the vertex nearest `point`: drop every triangle that touches that
+ * vertex position (leaving a hole where it was). Returns a new positions array;
+ * refuses to empty the mesh entirely.
+ */
+export function removeVertexNear(verts: number[], point: readonly [number, number, number]): number[] {
+  if (verts.length < 9) return verts
+  let bi = 0, bd = Infinity
+  for (let i = 0; i < verts.length; i += 3) {
+    const dx = verts[i] - point[0], dy = verts[i + 1] - point[1], dz = verts[i + 2] - point[2]
+    const d = dx * dx + dy * dy + dz * dz
+    if (d < bd) { bd = d; bi = i }
+  }
+  const qx = verts[bi], qy = verts[bi + 1], qz = verts[bi + 2]
+  const EPS = 1e-4
+  const near = (j: number) => Math.abs(verts[j] - qx) < EPS && Math.abs(verts[j + 1] - qy) < EPS && Math.abs(verts[j + 2] - qz) < EPS
+  const out: number[] = []
+  for (let t = 0; t + 9 <= verts.length; t += 9) {
+    if (near(t) || near(t + 3) || near(t + 6)) continue
+    for (let k = 0; k < 9; k++) out.push(verts[t + k])
+  }
+  return out.length >= 9 ? out : verts
+}
+
 /** Distance from point p to segment a→b (mm). */
 function pointToSegment(p: [number, number], a: [number, number], b: [number, number]): number {
   const abx = b[0] - a[0], aby = b[1] - a[1]

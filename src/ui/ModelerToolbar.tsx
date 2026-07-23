@@ -32,7 +32,9 @@ export function ModelerToolbar() {
         <span className="tbar-lbl">Tools</span>
         <button className="sbtn" aria-pressed={editMode === 'object'} onClick={move} title="Move whole objects">Move</button>
         <button className="sbtn" aria-pressed={editMode === 'vertex' && vertexTool === 'select'} onClick={() => setVertexTool('select')} title="Select vertices only">Select</button>
-        <button className="sbtn" aria-pressed={editMode === 'vertex' && vertexTool === 'edit'} onClick={() => setVertexTool('edit')} title="Drag vertices to reshape">Edit</button>
+        <button className="sbtn" aria-pressed={editMode === 'vertex' && vertexTool === 'edit'} onClick={() => setVertexTool('edit')} title="Left-click a vertex and drag to reshape">Edit</button>
+        <button className="sbtn" aria-pressed={editMode === 'vertex' && vertexTool === 'add'} onClick={() => setVertexTool('add')} title="Click the surface to add a vertex">Add</button>
+        <button className="sbtn" aria-pressed={editMode === 'vertex' && vertexTool === 'remove'} onClick={() => setVertexTool('remove')} title="Double-click a vertex to remove it">Remove</button>
         <button className="sbtn" aria-pressed={editMode === 'surface'} onClick={() => setEditMode('surface')} title="Draw on the surface">Surface</button>
       </div>
     </div>

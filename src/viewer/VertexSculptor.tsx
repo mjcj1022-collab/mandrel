@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Edges } from '@react-three/drei'
 import { useThree, type ThreeEvent } from '@react-three/fiber'
-import { sculptPull } from '../lib/sculpt'
+import { sculptPull, addVertexInTriangle, removeVertexNear } from '../lib/sculpt'
 import type { VertexTool } from '../state/modeler'
 
 export interface VertexSculptorProps {
@@ -86,6 +86,7 @@ export function VertexSculptor({ vertices, color, falloff, symmetry, tool, selec
 
   const down = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0) return                       // left button only
+    if (tool === 'add' || tool === 'remove') return  // handled by click / dblclick
     e.stopPropagation()
     const pos = geom.getAttribute('position') as THREE.BufferAttribute
     const lp = e.eventObject.worldToLocal(e.point.clone())
@@ -129,6 +130,22 @@ export function VertexSculptor({ vertices, color, falloff, symmetry, tool, selec
     onCommit(Array.from(pos.array as Float32Array))
   }
 
+  // Add tool: a single click splits the clicked triangle, adding a vertex.
+  const click = (e: ThreeEvent<MouseEvent>) => {
+    if (tool !== 'add' || e.faceIndex == null) return
+    e.stopPropagation()
+    const lp = e.eventObject.worldToLocal(e.point.clone())
+    onCommit(addVertexInTriangle(vertices, e.faceIndex, [lp.x, lp.y, lp.z]))
+  }
+
+  // Remove tool: a double click deletes the vertex nearest the cursor.
+  const dbl = (e: ThreeEvent<MouseEvent>) => {
+    if (tool !== 'remove') return
+    e.stopPropagation()
+    const lp = e.eventObject.worldToLocal(e.point.clone())
+    onCommit(removeVertexNear(vertices, [lp.x, lp.y, lp.z]))
+  }
+
   // The highlighted vertex, in the mesh's current (possibly mid-edit) space.
   const marker = useMemo(() => {
     if (selectedVertex == null) return null
@@ -150,6 +167,8 @@ export function VertexSculptor({ vertices, color, falloff, symmetry, tool, selec
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
+        onClick={click}
+        onDoubleClick={dbl}
         castShadow
       >
         <Edges scale={1.002} threshold={20} color="#3d454a" />
