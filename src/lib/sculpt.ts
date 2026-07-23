@@ -6,6 +6,7 @@ import { shapeById, stoneMm, alloyById, stoneById } from '../catalog'
 import { sizeToDiameter } from './sizing'
 import { brilliantGeometry } from './gem'
 import { MARKET } from './market'
+import { settingLaborFor, finishingFee } from './labor'
 import type { SculptObject, PrimitiveKind, SculptParams, ShankProfile } from '../state/modeler'
 
 export type BooleanOp = 'union' | 'subtract' | 'intersect'
@@ -572,7 +573,6 @@ export function sculptGemCarats(objects: SculptObject[]): number {
 /* ---------- sculpt price estimate ---------- */
 
 const OZT_G = 31.1035
-const SETTING_EACH = 55   // setting labor per main stone, $
 
 export interface SculptEstimate {
   vol: number; castG: number; carats: number; gemCount: number
@@ -583,7 +583,7 @@ export interface SculptEstimate {
 /**
  * A retail estimate from a sculpt, mirroring the Design tab's engine: exact
  * metal (summed part volume × alloy, at the shared spot factor), catalog stone
- * rates, per-stone setting labor, one cast/finish fee, all × the shop margin.
+ * rates, size-scaled setting labor, mass-scaled cast/finish, × the shop margin.
  */
 export function sculptEstimate(objects: SculptObject[], alloyId: string): SculptEstimate {
   const alloy = alloyById(alloyId)
@@ -598,8 +598,10 @@ export function sculptEstimate(objects: SculptObject[], alloyId: string): Sculpt
     return sum + st.rate * Math.pow(Math.max(g.params?.carat ?? 0, 0.001), st.exponent)
   }, 0)
   const carats = gems.reduce((s, g) => s + (g.params?.carat ?? 0), 0)
-  const settingLabor = gems.length * SETTING_EACH
-  const finishFee = MARKET.finishFee
+  // Labor tracks the actual work: setting scales with each stone's size, and
+  // finishing with the mass of metal that has to be filed and polished.
+  const settingLabor = gems.reduce((s, g) => s + settingLaborFor(g.params?.carat ?? 0), 0)
+  const finishFee = finishingFee(castG)
   const subtotal = metalCost + stoneCost + settingLabor + finishFee
   return { vol, castG, carats, gemCount: gems.length, metalCost, stoneCost, settingLabor, finishFee, subtotal, total: subtotal * MARKET.margin }
 }

@@ -5,6 +5,7 @@ import { computeMetal, type MetalResult } from './metal'
 import { engraveFee } from './engrave'
 import { isHidden } from './features'
 import { MARKET } from './market'
+import { settingSizeMultiplier, finishingFee } from './labor'
 
 export const FINISH_FEE = 95     // cast, file, sand, pre-polish, final polish
 export const RHODIUM_FEE = 45    // white-metal rhodium plating pass
@@ -54,7 +55,10 @@ export function computePrice(spec: DesignSpec): PriceResult {
 
   const gm = isGradeable(spec.center.stoneTypeId) ? gradeMultiplier(spec.center.grading ?? DEFAULT_GRADING) : 1
   const stoneCost = count > 0 && !isHidden(spec, 'stone') ? count * stone.rate * Math.pow(caratEach, stone.exponent) * gm : 0
-  const settingFee = usesSetting(spec.category) && count > 0 && !isHidden(spec, 'head') ? count * setting.fee : 0
+  // The style sets the rate (a bezel costs more than prongs); the stone's size
+  // scales it — seating a 3 ct is not the same job as seating a 0.3 ct.
+  const settingFee = usesSetting(spec.category) && count > 0 && !isHidden(spec, 'head')
+    ? count * setting.fee * settingSizeMultiplier(caratEach) : 0
 
   // Accent stones (halo, pavé, channel, three-stone sides): cheaper per-ct
   // melee plus bead-setting labor. Count, size, quality and setting style are
@@ -72,7 +76,9 @@ export function computePrice(spec: DesignSpec): PriceResult {
   const platingFee = spec.metal.rhodium && metal.alloy.platable ? MARKET.rhodiumFee : 0
   const finishExtra = finishById(spec.finish).fee
   const engrave = isHidden(spec, 'engraving') ? 0 : engraveFee(spec)
-  const subtotal = metal.netMetalCost + stoneCost + settingFee + accentCost + platingFee + MARKET.finishFee + finishExtra + engrave
+  // Finishing scales with the metal that actually has to be filed and polished.
+  const finish = finishingFee(metal.cast)
+  const subtotal = metal.netMetalCost + stoneCost + settingFee + accentCost + platingFee + finish + finishExtra + engrave
 
   return {
     metal,
@@ -83,7 +89,7 @@ export function computePrice(spec: DesignSpec): PriceResult {
     accentCost,
     accentCount: melee,
     platingFee,
-    finishFee: MARKET.finishFee,
+    finishFee: finish,
     finishExtra,
     engraveFee: engrave,
     subtotal,

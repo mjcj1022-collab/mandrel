@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { sculptEstimate } from '../lib/sculpt'
 import { stoneById } from '../catalog'
 import { MARKET } from '../lib/market'
+import { settingLaborFor, finishingFee } from '../lib/labor'
 import type { SculptObject } from '../state/modeler'
 
 const obj = (over: Partial<SculptObject> & { kind: SculptObject['kind'] }): SculptObject => ({
@@ -15,8 +16,9 @@ describe('sculptEstimate', () => {
     expect(e.metalCost).toBeGreaterThan(0)
     expect(e.stoneCost).toBe(0)
     expect(e.gemCount).toBe(0)
-    // subtotal = metal + finishFee (no stones/setting); total = subtotal × margin
-    expect(e.subtotal).toBeCloseTo(e.metalCost + MARKET.finishFee, 5)
+    // subtotal = metal + mass-scaled finishing (no stones/setting); total = ×margin
+    expect(e.finishFee).toBeCloseTo(finishingFee(e.castG), 5)
+    expect(e.subtotal).toBeCloseTo(e.metalCost + e.finishFee, 5)
     expect(e.total).toBeCloseTo(e.subtotal * MARKET.margin, 5)
   })
 
@@ -27,7 +29,8 @@ describe('sculptEstimate', () => {
     expect(e.gemCount).toBe(1)
     expect(e.carats).toBeCloseTo(1, 5)
     expect(e.stoneCost).toBeCloseTo(dia.rate * Math.pow(1, dia.exponent), 3)
-    expect(e.settingLabor).toBe(55)
+    // a 1 ct stone lands in the "medium" band — setting labor scales with size
+    expect(e.settingLabor).toBeCloseTo(settingLaborFor(1), 5)
   })
 
   it('a bigger diamond costs more than a smaller one', () => {

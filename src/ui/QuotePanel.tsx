@@ -209,7 +209,9 @@ export function QuotePanel() {
         <div className="cost-grid">
           <label>Metal spot ×<input type="number" step={0.05} value={market.spotFactor} onChange={e => setMarket({ spotFactor: Math.max(0, +e.target.value) })} /></label>
           <label>Margin ×<input type="number" step={0.05} value={market.margin} onChange={e => setMarket({ margin: Math.max(1, +e.target.value) })} /></label>
-          <label>Finish fee $<input type="number" step={5} value={market.finishFee} onChange={e => setMarket({ finishFee: Math.max(0, +e.target.value) })} /></label>
+          <label>Finish base $<input type="number" step={5} value={market.finishFee} onChange={e => setMarket({ finishFee: Math.max(0, +e.target.value) })} /></label>
+          <label>Finish $/g<input type="number" step={0.5} value={market.finishPerGram} onChange={e => setMarket({ finishPerGram: Math.max(0, +e.target.value) })} /></label>
+          <label>Setting base $<input type="number" step={5} value={market.settingBase} onChange={e => setMarket({ settingBase: Math.max(0, +e.target.value) })} /></label>
           <label>Melee labor $<input type="number" step={1} value={market.meleeLabor} onChange={e => setMarket({ meleeLabor: Math.max(0, +e.target.value) })} /></label>
         </div>
       )}
