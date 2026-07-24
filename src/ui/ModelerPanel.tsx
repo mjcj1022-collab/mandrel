@@ -6,6 +6,7 @@ import { sculptLibrary, type SavedSculpt } from '../lib/sculptLibrary'
 import { sculptHandoff, sculptRestore, SculptHandoffError } from '../lib/sculptHandoff'
 import { api, apiConfigured } from '../lib/api'
 import { analyzeMesh, type DfmReport } from '../lib/dfm'
+import { repairMesh } from '../lib/meshRepair'
 import { sculptTechSheet, sculptQuote } from '../lib/sculptDoc'
 import { textToPdf, bodyAfterTitle } from '../lib/pdf'
 import { ALLOYS, SHAPES, STONES, alloyById, shapeById, stoneMm } from '../catalog'
@@ -249,6 +250,23 @@ export function ModelerPanel() {
       addMesh({ kind: 'mesh', vertices, position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], size: 0, material: metalObj.material, color: metalObj.color, name: `${metalObj.name} seated` })
       remove(metalObj.id); setSeatTarget('')
     } catch { flash('Seat failed on this geometry.') }
+  }
+
+  /** One-click cleanup on a baked mesh: weld, de-sliver, cap holes, then
+   *  re-run the analyzer so the before→after shows in the DFM readout. */
+  const repair = (obj: SculptObject) => {
+    if (!obj.vertices || obj.vertices.length < 9) { flash('Nothing to repair on this part.'); return }
+    const { vertices, stats } = repairMesh(obj.vertices)
+    update(obj.id, { vertices })
+    setDfm({ id: obj.id, r: analyzeMesh(vertices) })
+    const fixes: string[] = []
+    if (stats.weldedVertices) fixes.push(`welded ${stats.weldedVertices} points`)
+    if (stats.removedDegenerate) fixes.push(`removed ${stats.removedDegenerate} sliver${stats.removedDegenerate === 1 ? '' : 's'}`)
+    if (stats.removedDuplicate) fixes.push(`dropped ${stats.removedDuplicate} duplicate face${stats.removedDuplicate === 1 ? '' : 's'}`)
+    if (stats.holesFilled) fixes.push(`capped ${stats.holesFilled} hole${stats.holesFilled === 1 ? '' : 's'}`)
+    flash(fixes.length
+      ? `Repaired — ${fixes.join(', ')}. ${stats.watertight ? 'Now watertight.' : 'Some non-manifold edges remain.'}`
+      : (stats.watertight ? 'Already clean — watertight.' : 'No auto-fixable issues found.'))
   }
 
   const alloy = alloyById(alloyId)
@@ -505,6 +523,7 @@ export function ModelerPanel() {
               </div>
               <div className="opts" style={{ marginTop: 8 }}>
                 <button className="opt tpl" onClick={() => { if (sel.vertices) setDfm({ id: sel.id, r: analyzeMesh(sel.vertices) }) }} title="Ray-cast wall thickness, watertightness and overhangs">Analyze for printing</button>
+                <button className="opt tpl" onClick={() => repair(sel)} title="Weld duplicate points, drop degenerate faces, and cap open holes so it slices and casts cleanly">Repair mesh ✚</button>
               </div>
               <p className="disc">{Math.round((sel.vertices?.length ?? 0) / 3).toLocaleString()} triangles</p>
               {dfm && dfm.id === sel.id && (
